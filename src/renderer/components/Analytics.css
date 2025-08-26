@@ -19,7 +19,7 @@
 
 .analytics-header h2 {
   margin: 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 1.8rem;
   font-weight: 600;
 }
@@ -36,7 +36,7 @@
   border-radius: 8px;
   background: white;
   font-size: 0.9rem;
-  color: #495057;
+  color: #374151;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -63,7 +63,7 @@
 
 .analytics-section h3 {
   margin: 0 0 1.5rem 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 1.3rem;
   font-weight: 600;
   border-bottom: 2px solid #f8f9fa;
@@ -74,8 +74,9 @@
 .loading {
   text-align: center;
   padding: 4rem;
-  color: #7f8c8d;
+  color: #6b7280;
   font-size: 1.2rem;
+  font-weight: 500;
 }
 
 /* Overview Metrics */
@@ -105,21 +106,26 @@
 .metric-card h4 {
   margin: 0 0 0.5rem 0;
   font-size: 0.9rem;
-  font-weight: 500;
-  opacity: 0.9;
+  font-weight: 600;
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .metric-value {
   font-size: 2.5rem;
-  font-weight: 700;
+  font-weight: 800;
   margin-bottom: 0.5rem;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .metric-label {
   font-size: 0.8rem;
-  opacity: 0.8;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* Platform Metrics */
@@ -155,7 +161,7 @@
 
 .platform-header h4 {
   margin: 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 1.1rem;
   font-weight: 600;
 }
@@ -174,15 +180,16 @@
   display: block;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: #374151;
   margin-bottom: 0.25rem;
 }
 
 .stat-label {
   font-size: 0.8rem;
-  color: #7f8c8d;
+  color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-weight: 500;
 }
 
 /* Top Posts */
@@ -234,19 +241,21 @@
 
 .post-platform {
   font-weight: 600;
-  color: #2c3e50;
+  color: #374151;
   text-transform: capitalize;
 }
 
 .post-date {
-  color: #7f8c8d;
+  color: #6b7280;
   font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .post-text {
-  color: #495057;
+  color: #374151;
   margin-bottom: 1rem;
   line-height: 1.5;
+  font-weight: 500;
 }
 
 .post-metrics {
@@ -260,7 +269,8 @@
   align-items: center;
   gap: 0.25rem;
   font-size: 0.9rem;
-  color: #495057;
+  color: #374151;
+  font-weight: 500;
 }
 
 .metric-icon {
@@ -294,8 +304,9 @@
   justify-content: space-between;
   height: 100%;
   font-size: 0.8rem;
-  color: #7f8c8d;
+  color: #6b7280;
   min-width: 80px;
+  font-weight: 500;
 }
 
 .chart-bars {
@@ -330,7 +341,7 @@
 .bar-value {
   margin-top: 0.5rem;
   font-size: 0.8rem;
-  color: #495057;
+  color: #374151;
   font-weight: 600;
 }
 
@@ -369,7 +380,7 @@
 
 .voice-header h4 {
   margin: 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 1.1rem;
   font-weight: 600;
 }
@@ -396,27 +407,29 @@
 .voice-stat .stat-label {
   display: block;
   font-size: 0.8rem;
-  color: #7f8c8d;
+  color: #6b7280;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-weight: 500;
 }
 
 .voice-stat .stat-value {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: #374151;
 }
 
 /* No Data State */
 .no-data {
   text-align: center;
   padding: 3rem;
-  color: #7f8c8d;
+  color: #6b7280;
   font-size: 1.1rem;
   background: white;
   border-radius: 12px;
   border: 2px dashed #e9ecef;
+  font-weight: 500;
 }
 
 /* Responsive Design */

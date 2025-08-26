@@ -19,7 +19,7 @@
 
 .engagement-header h1 {
   margin: 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 24px;
   font-weight: 600;
 }
@@ -72,7 +72,7 @@
 
 .interactions-list h3 {
   margin: 0 0 20px 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 18px;
   font-weight: 600;
 }
@@ -83,7 +83,7 @@
 
 .filters-section h3 {
   margin: 0 0 16px 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 18px;
   font-weight: 600;
 }
@@ -202,7 +202,7 @@
 
 .selected-interaction h3 {
   margin: 0 0 12px 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 16px;
   font-weight: 600;
 }
@@ -245,7 +245,7 @@
 
 .quick-replies-section h4 {
   margin: 0 0 12px 0;
-  color: #2c3e50;
+  color: #374151;
   font-size: 14px;
   font-weight: 600;
 }
