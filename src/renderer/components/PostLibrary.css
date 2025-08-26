@@ -50,13 +50,19 @@
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+.stat-item:hover .stat-number {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
+}
+
 .stat-number {
   display: block;
   font-size: 24px;
   font-weight: 800;
   margin-bottom: 4px;
-  color: #ffffff;
+  color: #ffffff !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  -webkit-text-fill-color: #ffffff;
 }
 
 .stat-label {
