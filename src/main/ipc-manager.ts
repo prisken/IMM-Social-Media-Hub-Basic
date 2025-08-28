@@ -6,6 +6,8 @@ import { AIManager } from './ai-manager';
 import { PostingEngine } from './posting-engine';
 import { SocialMediaManager } from './social-connectors';
 import { AnalyticsService } from './analytics-service';
+import { FacebookPostsFetcher } from './facebook-posts-fetcher';
+import { InstagramPostsFetcher } from './instagram-posts-fetcher';
 
 export class IPCManager {
   constructor(
@@ -26,10 +28,65 @@ export class IPCManager {
     this.setupSocialMediaIPC();
     this.setupAnalyticsIPC();
     this.setupUtilityIPC();
+    this.setupCalendarIPC();
+    this.setupEngagementIPC();
+    this.setupSettingsIPC();
   }
 
   private setupDatabaseIPC(): void {
-    // Brand Voice Profiles
+    // Brand Voice Profiles - Fix handler names
+    ipcMain.handle('brand-voice:get-profiles', async () => {
+      return await this.database.getBrandVoiceProfiles();
+    });
+
+    ipcMain.handle('brand-voice:create-profile', async (event, profile) => {
+      return await this.database.addBrandVoiceProfile(profile);
+    });
+
+    ipcMain.handle('brand-voice:update-profile', async (event, id, updates) => {
+      return await this.database.updateBrandVoiceProfile(id, updates);
+    });
+
+    ipcMain.handle('brand-voice:delete-profile', async (event, id) => {
+      return await this.database.deleteBrandVoiceProfile(id);
+    });
+
+    // Posts - Fix handler names
+    ipcMain.handle('db:get-posts', async () => {
+      return await this.database.getPosts();
+    });
+
+    ipcMain.handle('db:create-post', async (event, post) => {
+      return await this.database.addPost(post);
+    });
+
+    ipcMain.handle('db:update-post', async (event, id, updates) => {
+      return await this.database.updatePost(id, updates);
+    });
+
+    ipcMain.handle('db:delete-post', async (event, id) => {
+      return await this.database.deletePost(id);
+    });
+
+    // Products - Fix handler names
+    ipcMain.handle('db:get-products', async () => {
+      return await this.database.getProducts();
+    });
+
+    ipcMain.handle('db:get-product-templates', async () => {
+      return await this.database.getProductTemplates();
+    });
+
+    // Settings - Fix handler names
+    ipcMain.handle('db:get-settings', async () => {
+      return await this.database.getSettings();
+    });
+
+    ipcMain.handle('db:update-settings', async (event, updates) => {
+      return await this.database.updateSettings(updates);
+    });
+
+    // Keep original handlers for backward compatibility
     ipcMain.handle('get-brand-voice-profiles', async () => {
       return await this.database.getBrandVoiceProfiles();
     });
@@ -46,7 +103,6 @@ export class IPCManager {
       return await this.database.deleteBrandVoiceProfile(id);
     });
 
-    // Posts
     ipcMain.handle('get-posts', async () => {
       return await this.database.getPosts();
     });
@@ -122,6 +178,19 @@ export class IPCManager {
   }
 
   private setupMediaIPC(): void {
+    ipcMain.handle('media:get-files', async () => {
+      return await this.mediaManager.getFiles();
+    });
+
+    ipcMain.handle('media:upload-file', async (event, filePath) => {
+      return await this.mediaManager.uploadFile(filePath);
+    });
+
+    ipcMain.handle('media:delete-file', async (event, id) => {
+      return await this.mediaManager.deleteFile(id);
+    });
+
+    // Keep original handlers for backward compatibility
     ipcMain.handle('upload-media', async (event, filePath) => {
       return await this.mediaManager.uploadFile(filePath);
     });
@@ -136,19 +205,246 @@ export class IPCManager {
   }
 
   private setupAIIPC(): void {
-    // AI methods will be implemented later
+    ipcMain.handle('ollama:get-models', async () => {
+      return await this.ollamaManager.getModels();
+    });
+
+    ipcMain.handle('ollama:check-status', async () => {
+      return await this.ollamaManager.checkStatus();
+    });
+
+    ipcMain.handle('ollama:generate-content', async (event, prompt, model) => {
+      return await this.ollamaManager.generate(prompt, model);
+    });
   }
 
   private setupPostingIPC(): void {
     // Posting methods will be implemented later
   }
 
+  private setupCalendarIPC(): void {
+    ipcMain.handle('calendar:get-scheduled-posts', async () => {
+      return await this.database.getScheduledJobs();
+    });
+
+    ipcMain.handle('calendar:create-scheduled-post', async (event, post) => {
+      return await this.database.addScheduledJob(post);
+    });
+
+    ipcMain.handle('calendar:update-scheduled-post', async (event, id, updates) => {
+      return await this.database.updateScheduledJob(id, updates);
+    });
+
+    ipcMain.handle('calendar:delete-scheduled-post', async (event, id) => {
+      return await this.database.deleteScheduledJob(id);
+    });
+  }
+
+  private setupEngagementIPC(): void {
+    ipcMain.handle('engagement:get-interactions', async () => {
+      return await this.database.getEngagementInteractions();
+    });
+
+    ipcMain.handle('engagement:get-quick-replies', async () => {
+      return await this.database.getQuickReplies();
+    });
+
+    ipcMain.handle('engagement:create-interaction', async (event, interaction) => {
+      return await this.database.addEngagementInteraction(interaction);
+    });
+
+    ipcMain.handle('engagement:create-quick-reply', async (event, reply) => {
+      return await this.database.addQuickReply(reply);
+    });
+  }
+
+  private setupSettingsIPC(): void {
+    ipcMain.handle('settings:get', async () => {
+      return await this.database.getSettings();
+    });
+
+    ipcMain.handle('settings:update', async (event, updates) => {
+      return await this.database.updateSettings(updates);
+    });
+  }
+
   private setupSocialMediaIPC(): void {
-    // Social media methods will be implemented later
+    ipcMain.handle('social:add-account', async (event, account) => {
+      return await this.database.addSocialMediaAccount(account);
+    });
+
+    ipcMain.handle('social:get-accounts', async () => {
+      return await this.database.getSocialMediaAccounts();
+    });
+
+    ipcMain.handle('social:get-accounts-for-platform', async (event, platform) => {
+      const accounts = await this.database.getSocialMediaAccounts();
+      return accounts.filter(account => account.platform === platform);
+    });
+
+    ipcMain.handle('social:update-account', async (event, accountId, updates) => {
+      return await this.database.updateSocialMediaAccount(accountId, updates);
+    });
+
+    ipcMain.handle('social:delete-account', async (event, accountId) => {
+      return await this.database.deleteSocialMediaAccount(accountId);
+    });
+
+    ipcMain.handle('social:test-connection', async (event, account) => {
+      try {
+        // For now, return a simple test result
+        // In a real implementation, this would test the actual API connection
+        return {
+          success: true,
+          connected: account.isActive || false,
+          error: null
+        };
+      } catch (error) {
+        return {
+          success: false,
+          connected: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    });
   }
 
   private setupAnalyticsIPC(): void {
-    // Analytics methods will be implemented later
+    ipcMain.handle('analytics:get-data', async () => {
+      try {
+        const analyticsData = {
+          facebook: { reach: 0, posts: 0, engagement: 0 },
+          instagram: { reach: 0, posts: 0, engagement: 0 },
+          linkedin: { reach: 0, posts: 0, engagement: 0 },
+          total: { reach: 0, posts: 0, engagement: 0 }
+        };
+        
+        // Get analytics metrics for each platform
+        const platforms = ['facebook', 'instagram', 'linkedin'];
+        
+        for (const platform of platforms) {
+          const metrics = await this.database.getAnalyticsMetrics(undefined, platform);
+          
+          if (metrics.length > 0) {
+            const platformData = analyticsData[platform as keyof typeof analyticsData];
+            platformData.reach = metrics.reduce((sum, m) => sum + m.reach, 0);
+            platformData.posts = metrics.length;
+            platformData.engagement = metrics.reduce((sum, m) => 
+              sum + m.likes + m.comments + m.shares, 0);
+          }
+        }
+        
+        // Calculate totals
+        analyticsData.total.reach = analyticsData.facebook.reach + analyticsData.instagram.reach + analyticsData.linkedin.reach;
+        analyticsData.total.posts = analyticsData.facebook.posts + analyticsData.instagram.posts + analyticsData.linkedin.posts;
+        analyticsData.total.engagement = analyticsData.facebook.engagement + analyticsData.instagram.engagement + analyticsData.linkedin.engagement;
+        
+        return analyticsData;
+      } catch (error) {
+        console.error('Error getting analytics data:', error);
+        return {
+          facebook: { reach: 0, posts: 0, engagement: 0 },
+          instagram: { reach: 0, posts: 0, engagement: 0 },
+          linkedin: { reach: 0, posts: 0, engagement: 0 },
+          total: { reach: 0, posts: 0, engagement: 0 }
+        };
+      }
+    });
+
+    // Add new IPC handler for fetching Facebook data
+    ipcMain.handle('analytics:fetch-facebook-data', async () => {
+      try {
+        console.log('🔄 Manually triggering Facebook data fetch...');
+        const facebookFetcher = new FacebookPostsFetcher(this.database);
+        await facebookFetcher.fetchExistingPosts();
+        console.log('✅ Facebook data fetch completed');
+        return { success: true, message: 'Facebook data fetched successfully' };
+      } catch (error) {
+        console.error('❌ Error fetching Facebook data:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
+    });
+
+    // Add new IPC handler for fetching Instagram data
+    ipcMain.handle('analytics:fetch-instagram-data', async () => {
+      try {
+        console.log('🔄 Manually triggering Instagram data fetch...');
+        const instagramFetcher = new InstagramPostsFetcher(this.database);
+        await instagramFetcher.fetchExistingPosts();
+        console.log('✅ Instagram data fetch completed');
+        return { success: true, message: 'Instagram data fetched successfully' };
+      } catch (error) {
+        console.error('❌ Error fetching Instagram data:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
+    });
+
+    ipcMain.handle('analytics:get-platform-stats', async () => {
+      return await this.database.getPlatformStats();
+    });
+
+    ipcMain.handle('analytics:get-pending-actions', async () => {
+      // Return empty array for now
+      return [];
+    });
+
+    ipcMain.handle('analytics:get-todays-schedule', async () => {
+      // Return empty array for now
+      return [];
+    });
+
+    ipcMain.handle('analytics:get-metrics', async (event, filters) => {
+      // Return empty array for now
+      return [];
+    });
+
+    ipcMain.handle('analytics:get-trends', async (event, platform, days) => {
+      // Return empty array for now
+      return [];
+    });
+
+    ipcMain.handle('analytics:get-top-posts', async (event, platform, limit, days) => {
+      // Return empty array for now
+      return [];
+    });
+
+    // Add IPC handler for clearing analytics data
+    ipcMain.handle('analytics:clear-data', async () => {
+      try {
+        console.log('🗑️ Clearing all analytics data...');
+        
+        // Clear analytics metrics
+        await this.database.clearAnalyticsMetrics();
+        
+        // Clear posts (optional - uncomment if you want to clear posts too)
+        // await this.database.clearPosts();
+        
+        console.log('✅ Analytics data cleared successfully');
+        return { success: true, message: 'Analytics data cleared successfully' };
+      } catch (error) {
+        console.error('❌ Error clearing analytics data:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
+    });
+
+    ipcMain.handle('analytics:get-brand-voice-performance', async (event, filters) => {
+      // Return empty array for now
+      return [];
+    });
+
+    ipcMain.handle('analytics:save-metrics', async (event, metrics) => {
+      return await this.analyticsService.fetchAndStoreMetrics(metrics.postId, metrics.platform);
+    });
+
+    ipcMain.handle('analytics:save-trend', async (event, trend) => {
+      // Implementation for saving trends
+      return true;
+    });
+
+    ipcMain.handle('analytics:save-brand-voice-performance', async (event, performance) => {
+      // Implementation for saving brand voice performance
+      return true;
+    });
   }
 
   private setupUtilityIPC(): void {

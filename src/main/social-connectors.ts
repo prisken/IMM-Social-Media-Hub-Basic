@@ -255,39 +255,8 @@ export class FacebookConnector extends SocialMediaConnector {
       return interactions;
     } catch (error) {
       console.error('Failed to fetch Facebook engagement interactions:', error);
-      // Return mock data as fallback
-      return [
-        {
-          id: 'fb_comment_1',
-          platform: 'facebook',
-          postId: 'post_123',
-          interactionType: 'comment',
-          interactionId: 'comment_123',
-          authorName: 'John Smith',
-          authorId: 'user_123',
-          content: 'This looks amazing! How can I get started?',
-          sentiment: 'positive',
-          sentimentScore: 0.85,
-          isProcessed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 'fb_comment_2',
-          platform: 'facebook',
-          postId: 'post_123',
-          interactionType: 'comment',
-          interactionId: 'comment_124',
-          authorName: 'Sarah Johnson',
-          authorId: 'user_124',
-          content: 'I love the AI features! This is exactly what my business needs.',
-          sentiment: 'positive',
-          sentimentScore: 0.92,
-          isProcessed: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
+      // Return empty array when no real data is available
+      return [];
     }
   }
 

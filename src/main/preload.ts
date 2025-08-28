@@ -125,19 +125,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Analytics operations
-  analytics: {
-    getData: () => ipcRenderer.invoke('analytics:get-data'),
-    getPendingActions: () => ipcRenderer.invoke('analytics:get-pending-actions'),
-    getTodaysSchedule: () => ipcRenderer.invoke('analytics:get-todays-schedule'),
-    getPlatformStats: () => ipcRenderer.invoke('analytics:get-platform-stats'),
-    getMetrics: (filters?: any) => ipcRenderer.invoke('analytics:get-metrics', filters),
-    getTrends: (platform?: string, days?: number) => ipcRenderer.invoke('analytics:get-trends', platform, days),
-    getTopPosts: (platform?: string, limit?: number, days?: number) => ipcRenderer.invoke('analytics:get-top-posts', platform, limit, days),
-    getBrandVoicePerformance: (filters?: any) => ipcRenderer.invoke('analytics:get-brand-voice-performance', filters),
-    saveMetrics: (metrics: any) => ipcRenderer.invoke('analytics:save-metrics', metrics),
-    saveTrend: (trend: any) => ipcRenderer.invoke('analytics:save-trend', trend),
-    saveBrandVoicePerformance: (performance: any) => ipcRenderer.invoke('analytics:save-brand-voice-performance', performance),
-  },
+        analytics: {
+        getData: () => ipcRenderer.invoke('analytics:get-data'),
+        getPendingActions: () => ipcRenderer.invoke('analytics:get-pending-actions'),
+        getTodaysSchedule: () => ipcRenderer.invoke('analytics:get-todays-schedule'),
+        getPlatformStats: () => ipcRenderer.invoke('analytics:get-platform-stats'),
+        getMetrics: (filters?: any) => ipcRenderer.invoke('analytics:get-metrics', filters),
+        getTrends: (platform?: string, days?: number) => ipcRenderer.invoke('analytics:get-trends', platform, days),
+        getTopPosts: (platform?: string, limit?: number, days?: number) => ipcRenderer.invoke('analytics:get-top-posts', platform, limit, days),
+        getBrandVoicePerformance: (filters?: any) => ipcRenderer.invoke('analytics:get-brand-voice-performance', filters),
+        saveMetrics: (metrics: any) => ipcRenderer.invoke('analytics:save-metrics', metrics),
+        saveTrend: (trend: any) => ipcRenderer.invoke('analytics:save-trend', trend),
+        saveBrandVoicePerformance: (performance: any) => ipcRenderer.invoke('analytics:save-brand-voice-performance', performance),
+        fetchFacebookData: () => ipcRenderer.invoke('analytics:fetch-facebook-data'),
+        fetchInstagramData: () => ipcRenderer.invoke('analytics:fetch-instagram-data'),
+        clearData: () => ipcRenderer.invoke('analytics:clear-data'),
+      },
 
   // Engagement operations
   engagement: {
@@ -275,6 +278,13 @@ declare global {
           instagram: { connected: boolean; accountName?: string };
           linkedin: { connected: boolean; accountName?: string };
         }>;
+        getMetrics: (filters?: any) => Promise<any[]>;
+        getTrends: (platform?: string, days?: number) => Promise<any[]>;
+        getTopPosts: (platform?: string, limit?: number, days?: number) => Promise<any[]>;
+        getBrandVoicePerformance: (filters?: any) => Promise<any[]>;
+        saveMetrics: (metrics: any) => Promise<any>;
+        saveTrend: (trend: any) => Promise<any>;
+        saveBrandVoicePerformance: (performance: any) => Promise<any>;
       };
       engagement: {
         getInteractions: (filters?: any) => Promise<any[]>;

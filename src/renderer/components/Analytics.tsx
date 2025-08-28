@@ -85,6 +85,8 @@ function Analytics() {
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
   const [dateRange, setDateRange] = useState<string>('30');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasData, setHasData] = useState(false);
 
   useEffect(() => {
     loadAnalyticsData();
@@ -93,41 +95,90 @@ function Analytics() {
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Check if we have any social media accounts connected
+      try {
+        const platformStats = await window.electronAPI.analytics.getPlatformStats();
+        const hasConnectedPlatforms = Object.values(platformStats).some(platform => platform.connected);
+        
+        if (!hasConnectedPlatforms) {
+          setError('No social media accounts are connected. Please connect your accounts in Settings to view analytics.');
+          setLoading(false);
+          return;
+        }
+      } catch (statsError) {
+        console.warn('Could not check platform stats:', statsError);
+      }
       
       // Load overview analytics
-      const analyticsData = await window.electronAPI.analytics.getData();
-      setAnalytics(analyticsData);
+      try {
+        const analyticsData = await window.electronAPI.analytics.getData();
+        setAnalytics(analyticsData);
+        
+        // Check if we have any real data
+        const hasRealData = analyticsData.total.reach > 0 || analyticsData.total.posts > 0;
+        setHasData(hasRealData);
+        
+        if (!hasRealData) {
+          setError('No analytics data available. Start posting content to see your performance metrics.');
+          setLoading(false);
+          return;
+        }
+      } catch (analyticsError) {
+        console.error('Error loading analytics data:', analyticsError);
+        setError('Analytics data is not available. Please ensure your social media accounts are properly connected and have posted content.');
+        setLoading(false);
+        return;
+      }
       
       // Load detailed metrics
-      const metricsData = await window.electronAPI.analytics.getMetrics({
-        platform: selectedPlatform === 'all' ? null : selectedPlatform,
-        days: parseInt(dateRange)
-      });
-      setMetrics(metricsData);
+      try {
+        const metricsData = await window.electronAPI.analytics.getMetrics({
+          platform: selectedPlatform === 'all' ? null : selectedPlatform,
+          days: parseInt(dateRange)
+        });
+        setMetrics(metricsData);
+      } catch (metricsError) {
+        console.warn('Detailed metrics not available:', metricsError);
+      }
       
       // Load trends
-      const trendsData = await window.electronAPI.analytics.getTrends(
-        selectedPlatform === 'all' ? null : selectedPlatform,
-        parseInt(dateRange)
-      );
-      setTrends(trendsData);
+      try {
+        const trendsData = await window.electronAPI.analytics.getTrends(
+          selectedPlatform === 'all' ? null : selectedPlatform,
+          parseInt(dateRange)
+        );
+        setTrends(trendsData);
+      } catch (trendsError) {
+        console.warn('Trends data not available:', trendsError);
+      }
       
       // Load top posts
-      const topPostsData = await window.electronAPI.analytics.getTopPosts(
-        selectedPlatform === 'all' ? null : selectedPlatform,
-        10,
-        parseInt(dateRange)
-      );
-      setTopPosts(topPostsData);
+      try {
+        const topPostsData = await window.electronAPI.analytics.getTopPosts(
+          selectedPlatform === 'all' ? null : selectedPlatform,
+          10,
+          parseInt(dateRange)
+        );
+        setTopPosts(topPostsData);
+      } catch (postsError) {
+        console.warn('Top posts data not available:', postsError);
+      }
       
       // Load brand voice performance
-      const voicePerformanceData = await window.electronAPI.analytics.getBrandVoicePerformance({
-        days: parseInt(dateRange)
-      });
-      setBrandVoicePerformance(voicePerformanceData);
+      try {
+        const voicePerformanceData = await window.electronAPI.analytics.getBrandVoicePerformance({
+          days: parseInt(dateRange)
+        });
+        setBrandVoicePerformance(voicePerformanceData);
+      } catch (voiceError) {
+        console.warn('Brand voice performance data not available:', voiceError);
+      }
       
     } catch (error) {
       console.error('Error loading analytics data:', error);
+      setError('Failed to load analytics data. Please check your internet connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -165,6 +216,49 @@ function Analytics() {
     return (
       <div className="analytics">
         <div className="loading">Loading analytics data...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="analytics">
+        <div className="analytics-header">
+          <h2>📊 Analytics Dashboard</h2>
+        </div>
+        <div className="error-message">
+          <h3>⚠️ {error}</h3>
+          <div className="error-actions">
+            <button onClick={() => window.location.hash = '#settings'} className="connect-button">
+              Connect Social Media Accounts
+            </button>
+            <button onClick={() => window.location.hash = '#content-studio'} className="create-button">
+              Create Your First Post
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <div className="analytics">
+        <div className="analytics-header">
+          <h2>📊 Analytics Dashboard</h2>
+        </div>
+        <div className="no-data-message">
+          <h3>📈 No Analytics Data Yet</h3>
+          <p>Start posting content to see your performance metrics and insights.</p>
+          <div className="no-data-actions">
+            <button onClick={() => window.location.hash = '#content-studio'} className="create-button">
+              Create Your First Post
+            </button>
+            <button onClick={() => window.location.hash = '#scheduler'} className="schedule-button">
+              Schedule Posts
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -258,61 +352,63 @@ function Analytics() {
       </section>
 
       {/* Top Performing Posts */}
-      <section className="analytics-section">
-        <h3>Top Performing Posts</h3>
-        <div className="top-posts">
-          {topPosts.map((post, index) => (
-            <div key={post.id} className="top-post-card">
-              <div className="post-rank">#{index + 1}</div>
-              <div className="post-content">
-                <div className="post-header">
-                  <span className="platform-icon">{getPlatformIcon(post.platform)}</span>
-                  <span className="post-platform">{post.platform}</span>
-                  <span className="post-date">
-                    {new Date(post.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="post-text">
-                  {post.content.length > 100 
-                    ? post.content.substring(0, 100) + '...' 
-                    : post.content
-                  }
-                </div>
-                <div className="post-metrics">
-                  <span className="metric">
-                    <span className="metric-icon">👁️</span>
-                    {formatNumber(post.analytics.reach)}
-                  </span>
-                  <span className="metric">
-                    <span className="metric-icon">❤️</span>
-                    {formatNumber(post.analytics.likes)}
-                  </span>
-                  <span className="metric">
-                    <span className="metric-icon">💬</span>
-                    {formatNumber(post.analytics.comments)}
-                  </span>
-                  <span className="metric">
-                    <span className="metric-icon">🔄</span>
-                    {formatNumber(post.analytics.shares)}
-                  </span>
-                  <span 
-                    className="engagement-rate"
-                    style={{ color: getEngagementColor(post.analytics.engagementRate) }}
-                  >
-                    {formatPercentage(post.analytics.engagementRate)}
-                  </span>
+      {topPosts.length > 0 && (
+        <section className="analytics-section">
+          <h3>Top Performing Posts</h3>
+          <div className="top-posts">
+            {topPosts.map((post, index) => (
+              <div key={post.id} className="top-post-card">
+                <div className="post-rank">#{index + 1}</div>
+                <div className="post-content">
+                  <div className="post-header">
+                    <span className="platform-icon">{getPlatformIcon(post.platform)}</span>
+                    <span className="post-platform">{post.platform}</span>
+                    <span className="post-date">
+                      {new Date(post.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="post-text">
+                    {post.content.length > 100 
+                      ? post.content.substring(0, 100) + '...' 
+                      : post.content
+                    }
+                  </div>
+                  <div className="post-metrics">
+                    <span className="metric">
+                      <span className="metric-icon">👁️</span>
+                      {formatNumber(post.analytics.reach)}
+                    </span>
+                    <span className="metric">
+                      <span className="metric-icon">❤️</span>
+                      {formatNumber(post.analytics.likes)}
+                    </span>
+                    <span className="metric">
+                      <span className="metric-icon">💬</span>
+                      {formatNumber(post.analytics.comments)}
+                    </span>
+                    <span className="metric">
+                      <span className="metric-icon">🔄</span>
+                      {formatNumber(post.analytics.shares)}
+                    </span>
+                    <span 
+                      className="engagement-rate"
+                      style={{ color: getEngagementColor(post.analytics.engagementRate) }}
+                    >
+                      {formatPercentage(post.analytics.engagementRate)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Trends Chart */}
-      <section className="analytics-section">
-        <h3>Engagement Trends</h3>
-        <div className="trends-chart">
-          {trends.length > 0 ? (
+      {trends.length > 0 && (
+        <section className="analytics-section">
+          <h3>Engagement Trends</h3>
+          <div className="trends-chart">
             <div className="chart-container">
               <div className="chart-labels">
                 {trends.map(trend => (
@@ -336,17 +432,15 @@ function Analytics() {
                 ))}
               </div>
             </div>
-          ) : (
-            <div className="no-data">No trend data available for the selected period.</div>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
       {/* Brand Voice Performance */}
-      <section className="analytics-section">
-        <h3>Brand Voice Performance</h3>
-        <div className="brand-voice-performance">
-          {brandVoicePerformance.length > 0 ? (
+      {brandVoicePerformance.length > 0 && (
+        <section className="analytics-section">
+          <h3>Brand Voice Performance</h3>
+          <div className="brand-voice-performance">
             <div className="voice-metrics">
               {brandVoicePerformance.map(performance => (
                 <div key={performance.id} className="voice-metric-card">
@@ -374,11 +468,31 @@ function Analytics() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="no-data">No brand voice performance data available.</div>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
+
+      {/* No Data Sections */}
+      {topPosts.length === 0 && (
+        <section className="analytics-section">
+          <h3>Top Performing Posts</h3>
+          <div className="no-data">No top performing posts available for the selected period.</div>
+        </section>
+      )}
+
+      {trends.length === 0 && (
+        <section className="analytics-section">
+          <h3>Engagement Trends</h3>
+          <div className="no-data">No trend data available for the selected period.</div>
+        </section>
+      )}
+
+      {brandVoicePerformance.length === 0 && (
+        <section className="analytics-section">
+          <h3>Brand Voice Performance</h3>
+          <div className="no-data">No brand voice performance data available.</div>
+        </section>
+      )}
     </div>
   );
 }

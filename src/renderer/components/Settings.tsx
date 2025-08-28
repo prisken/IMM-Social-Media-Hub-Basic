@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Settings.css';
+import SocialMediaAccounts from './SocialMediaAccounts';
 
 interface BrandVoice {
   tone: string;
@@ -141,10 +142,10 @@ function Settings() {
       for (const account of accounts) {
         try {
           const result = await window.electronAPI.social.testConnection(account);
-          statusMap[account.id] = result.connected || false;
+          statusMap[String(account.id)] = result.success && result.connected ? true : false;
         } catch (error) {
           console.error(`Failed to test connection for ${account.platform}:`, error);
-          statusMap[account.id] = false;
+          statusMap[String(account.id)] = false;
         }
       }
       setConnectionStatus(statusMap);
@@ -169,7 +170,7 @@ function Settings() {
       
       setConnectionStatus(prev => ({
         ...prev,
-        [accountId]: result.success && result.connected ? true : false
+        [String(accountId)]: result.success && result.connected ? true : false
       }));
       
       // Reset form and reload accounts
@@ -202,7 +203,7 @@ function Settings() {
           const currentStatus = connectionStatus[accountId];
           setConnectionStatus(prev => ({
             ...prev,
-            [accountId]: !currentStatus
+            [String(accountId)]: !currentStatus
           }));
           break;
         case 'refresh':
@@ -212,7 +213,7 @@ function Settings() {
             const result = await window.electronAPI.social.testConnection(account);
             setConnectionStatus(prev => ({
               ...prev,
-              [accountId]: result.success && result.connected ? true : false
+              [String(accountId)]: result.success && result.connected ? true : false
             }));
           }
           break;
@@ -244,10 +245,11 @@ function Settings() {
       const account = socialAccounts.find(acc => acc.id === accountId);
       if (!account) return;
       
-      const isConnected = await window.electronAPI.social.testConnection(account);
+      const result = await window.electronAPI.social.testConnection(account);
+      const isConnected = result.success && result.connected ? true : false;
       setConnectionStatus(prev => ({
         ...prev,
-        [accountId]: isConnected
+        [String(accountId)]: isConnected
       }));
       
       setMessage(isConnected ? 'Token refreshed successfully!' : 'Token refresh failed');
@@ -556,133 +558,7 @@ function Settings() {
         {/* Social Media Accounts */}
         {activeTab === 'social-media' && (
           <section className="settings-section">
-            <h2>Social Media Accounts</h2>
-            
-            {isLoadingAccounts ? (
-              <div className="loading">Loading social media accounts...</div>
-            ) : (
-              <>
-                <div className="social-accounts">
-                  {socialAccounts.length === 0 ? (
-                    <div className="no-accounts">
-                      <p>No social media accounts connected yet.</p>
-                      <button 
-                        className="add-account-button"
-                        onClick={() => setShowAddForm(true)}
-                      >
-                        + Add Account
-                      </button>
-                    </div>
-                  ) : (
-                    socialAccounts.map(account => (
-                      <div key={account.id} className="social-account">
-                        <div className="account-info">
-                          <h3>{account.platform.charAt(0).toUpperCase() + account.platform.slice(1)}</h3>
-                          <div className="account-details">
-                            <span className={`status ${connectionStatus[account.id] ? 'connected' : 'disconnected'}`}>
-                              {connectionStatus[account.id] ? 'Connected' : 'Not Connected'}
-                            </span>
-                            <span className="account-name">{account.accountName}</span>
-                          </div>
-                        </div>
-                        <div className="account-actions">
-                          <button 
-                            className="connect-button"
-                            onClick={() => handleAccountAction(account.id, 'toggle')}
-                          >
-                            {connectionStatus[account.id] ? 'Disconnect' : 'Connect'}
-                          </button>
-                          {connectionStatus[account.id] && (
-                            <button 
-                              className="refresh-button"
-                              onClick={() => handleAccountAction(account.id, 'refresh')}
-                            >
-                              Refresh Token
-                            </button>
-                          )}
-                          <button 
-                            className="delete-button"
-                            onClick={() => handleAccountAction(account.id, 'delete')}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {showAddForm && (
-                  <div className="add-account-form">
-                    <h3>Add New Account</h3>
-                    <div className="form-group">
-                      <label>Platform:</label>
-                      <select 
-                        value={newAccount.platform}
-                        onChange={(e) => setNewAccount({...newAccount, platform: e.target.value})}
-                      >
-                        <option value="facebook">Facebook</option>
-                        <option value="instagram">Instagram</option>
-                        <option value="linkedin">LinkedIn</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Account Name:</label>
-                      <input 
-                        type="text"
-                        value={newAccount.accountName}
-                        onChange={(e) => setNewAccount({...newAccount, accountName: e.target.value})}
-                        placeholder="Enter account name"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Access Token:</label>
-                      <input 
-                        type="password"
-                        value={newAccount.accessToken}
-                        onChange={(e) => setNewAccount({...newAccount, accessToken: e.target.value})}
-                        placeholder="Enter access token"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Account ID:</label>
-                      <input 
-                        type="text"
-                        value={newAccount.accountId}
-                        onChange={(e) => setNewAccount({...newAccount, accountId: e.target.value})}
-                        placeholder="Enter account ID"
-                      />
-                    </div>
-                    <div className="form-actions">
-                      <button 
-                        className="save-button"
-                        onClick={addSocialAccount}
-                        disabled={isConnecting}
-                      >
-                        {isConnecting ? 'Connecting...' : 'Add Account'}
-                      </button>
-                      <button 
-                        className="cancel-button"
-                        onClick={() => setShowAddForm(false)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="connection-help">
-                  <h4>Connection Help</h4>
-                  <p>To connect your social media accounts, you'll need to:</p>
-                  <ol>
-                    <li>Create a developer account on each platform</li>
-                    <li>Set up an app and get your access tokens</li>
-                    <li>Configure the necessary permissions</li>
-                    <li>Enter your credentials below</li>
-                  </ol>
-                </div>
-              </>
-            )}
+            <SocialMediaAccounts />
           </section>
         )}
 

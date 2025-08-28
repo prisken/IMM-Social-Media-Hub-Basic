@@ -517,226 +517,13 @@ export class AppDatabase {
       );
     }
 
-    // Seed sample social media accounts
-    await this.seedSampleAccounts();
-    
-    // Seed sample posts
-    await this.seedSamplePosts();
-    
-    // Seed sample engagement interactions
-    await this.seedSampleEngagement();
-    
-    // Seed sample quick replies
-    await this.seedSampleQuickReplies();
-    
-    // Seed sample product templates
-    await this.seedSampleProductTemplates();
+    // No sample data seeding - all data must be real
+    console.log('✅ Database initialized without sample data');
   }
 
-  private async seedSampleAccounts() {
-    const existingAccounts = this.db.prepare('SELECT id FROM social_media_accounts LIMIT 1').get();
-    if (!existingAccounts) {
-      const now = new Date().toISOString();
-      
-      // Sample Facebook account
-      this.db.prepare(`
-        INSERT INTO social_media_accounts (
-          id, platform, account_name, access_token, refresh_token, expires_at,
-          page_id, business_account_id, organization_id, is_active, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'sample_facebook_1',
-        'facebook',
-        'IMM Marketing Hub',
-        'sample_token_123',
-        null,
-        null,
-        '123456789',
-        null,
-        null,
-        1,
-        now,
-        now
-      );
 
-      // Sample Instagram account
-      this.db.prepare(`
-        INSERT INTO social_media_accounts (
-          id, platform, account_name, access_token, refresh_token, expires_at,
-          page_id, business_account_id, organization_id, is_active, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'sample_instagram_1',
-        'instagram',
-        'imm_marketing_hub',
-        'sample_token_456',
-        null,
-        null,
-        null,
-        '987654321',
-        null,
-        1,
-        now,
-        now
-      );
 
-      // Sample LinkedIn account
-      this.db.prepare(`
-        INSERT INTO social_media_accounts (
-          id, platform, account_name, access_token, refresh_token, expires_at,
-          page_id, business_account_id, organization_id, is_active, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'sample_linkedin_1',
-        'linkedin',
-        'IMM Marketing Hub',
-        'sample_token_789',
-        null,
-        null,
-        null,
-        null,
-        'org_123456',
-        1,
-        now,
-        now
-      );
-    }
-  }
 
-  private async seedSamplePosts() {
-    const existingPosts = this.db.prepare('SELECT id FROM posts LIMIT 1').get();
-    if (!existingPosts) {
-      const now = new Date().toISOString();
-      
-      // Sample Facebook posts
-      this.db.prepare(`
-        INSERT INTO posts (id, platform, content, media_files, scheduled_time, status, engagement, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'post_fb_1',
-        'facebook',
-        '🚀 Exciting news! We just launched our new AI-powered marketing platform. Transform your business with intelligent content creation and automated social media management. #MarketingAI #BusinessGrowth',
-        JSON.stringify([]),
-        null,
-        'published',
-        JSON.stringify({ reach: 2500, impressions: 3200, likes: 45, comments: 12, shares: 8 }),
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO posts (id, platform, content, media_files, scheduled_time, status, engagement, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'post_fb_2',
-        'facebook',
-        '💡 Marketing Tip: Consistency is key! Post regularly and maintain your brand voice across all platforms. Our AI helps you stay consistent while saving time. #MarketingTips #BrandVoice',
-        JSON.stringify([]),
-        null,
-        'published',
-        JSON.stringify({ reach: 1800, impressions: 2200, likes: 32, comments: 8, shares: 5 }),
-        now,
-        now
-      );
-
-      // Sample Instagram posts
-      this.db.prepare(`
-        INSERT INTO posts (id, platform, content, media_files, scheduled_time, status, engagement, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'post_ig_1',
-        'instagram',
-        '✨ Behind the scenes of our latest product launch! Swipe to see the magic happen. #BehindTheScenes #ProductLaunch #Innovation',
-        JSON.stringify(['sample_image_1.jpg']),
-        null,
-        'published',
-        JSON.stringify({ reach: 1200, impressions: 1500, likes: 89, comments: 15, shares: 3 }),
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO posts (id, platform, content, media_files, scheduled_time, status, engagement, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'post_ig_2',
-        'instagram',
-        '🎯 Want to boost your engagement? Try these proven strategies: 1. Post at optimal times 2. Use relevant hashtags 3. Engage with your audience 4. Share valuable content. Which tip resonates with you? #EngagementTips #SocialMediaStrategy',
-        JSON.stringify(['sample_image_2.jpg']),
-        null,
-        'published',
-        JSON.stringify({ reach: 950, impressions: 1200, likes: 67, comments: 23, shares: 7 }),
-        now,
-        now
-      );
-
-      // Sample LinkedIn posts
-      this.db.prepare(`
-        INSERT INTO posts (id, platform, content, media_files, scheduled_time, status, engagement, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'post_li_1',
-        'linkedin',
-        'The future of marketing is here. AI-powered tools are revolutionizing how businesses create, manage, and optimize their content. At IMM Marketing Hub, we\'re proud to be at the forefront of this transformation. #AIMarketing #Innovation #DigitalTransformation',
-        JSON.stringify([]),
-        null,
-        'published',
-        JSON.stringify({ reach: 890, impressions: 1100, likes: 28, comments: 6, shares: 12 }),
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO posts (id, platform, content, media_files, scheduled_time, status, engagement, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'post_li_2',
-        'linkedin',
-        'Thought leadership isn\'t just about sharing insights—it\'s about providing actionable value to your network. Here are three strategies that have helped our clients establish themselves as industry leaders. #ThoughtLeadership #ProfessionalDevelopment #Networking',
-        JSON.stringify([]),
-        null,
-        'published',
-        JSON.stringify({ reach: 650, impressions: 800, likes: 19, comments: 4, shares: 8 }),
-        now,
-        now
-      );
-
-      // Sample scheduled posts for today
-      const today = new Date();
-      const scheduledTime1 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0, 0).toISOString();
-      const scheduledTime2 = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 17, 30, 0).toISOString();
-
-      this.db.prepare(`
-        INSERT INTO posts (id, platform, content, media_files, scheduled_time, status, engagement, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'post_scheduled_1',
-        'facebook',
-        '📊 Weekly Marketing Insights: Our AI analyzed over 10,000 posts and found that video content gets 2.3x more engagement than static images. Ready to boost your content strategy? #MarketingInsights #VideoMarketing #DataDriven',
-        JSON.stringify([]),
-        scheduledTime1,
-        'scheduled',
-        JSON.stringify({}),
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO posts (id, platform, content, media_files, scheduled_time, status, engagement, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'post_scheduled_2',
-        'instagram',
-        '🎨 Creative inspiration for your next campaign! Our AI-generated templates are designed to capture attention and drive engagement. Swipe to see more examples. #CreativeMarketing #AITemplates #VisualContent',
-        JSON.stringify(['template_1.jpg', 'template_2.jpg']),
-        scheduledTime2,
-        'scheduled',
-        JSON.stringify({}),
-        now,
-        now
-      );
-    }
-  }
 
   async getSettings(): Promise<AppSettings> {
     const result = this.db.prepare('SELECT * FROM settings WHERE id = ?').get('default') as any;
@@ -1007,8 +794,8 @@ export class AppDatabase {
   }
 
   // Post operations
-  async addPost(post: Omit<Post, 'id'>): Promise<string> {
-    const id = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  async addPost(post: Omit<Post, 'id'>, customId?: string): Promise<string> {
+    const id = customId || `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
 
     this.db.prepare(`
@@ -1711,7 +1498,7 @@ export class AppDatabase {
       params.push(filters.limit);
     }
 
-    const rows = await this.db.all(query, params);
+    const rows = this.db.prepare(query).all(...params);
     return rows.map((row: any) => ({
       id: row.id,
       platform: row.platform,
@@ -1815,7 +1602,7 @@ export class AppDatabase {
 
     query += ' ORDER BY usage_count DESC, name ASC';
 
-    const rows = await this.db.all(query, params);
+    const rows = this.db.prepare(query).all(...params);
     return rows.map((row: any) => ({
       id: row.id,
       name: row.name,
@@ -1835,236 +1622,6 @@ export class AppDatabase {
       SET usage_count = usage_count + 1, updated_at = ?
       WHERE id = ?
     `, [new Date().toISOString(), id]);
-  }
-
-  private async seedSampleEngagement() {
-    const existingInteractions = this.db.prepare('SELECT id FROM engagement_interactions LIMIT 1').get();
-    if (!existingInteractions) {
-      const now = new Date().toISOString();
-      
-      // Sample Facebook interactions
-      this.db.prepare(`
-        INSERT INTO engagement_interactions (
-          id, platform, post_id, interaction_type, interaction_id, author_name, 
-          author_id, content, sentiment, sentiment_score, is_processed, 
-          processed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'engagement_fb_1',
-        'facebook',
-        'post_fb_1',
-        'comment',
-        'comment_123',
-        'John Smith',
-        'user_123',
-        'This looks amazing! How can I get started with your platform?',
-        'positive',
-        0.85,
-        0,
-        null,
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO engagement_interactions (
-          id, platform, post_id, interaction_type, interaction_id, author_name, 
-          author_id, content, sentiment, sentiment_score, is_processed, 
-          processed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'engagement_fb_2',
-        'facebook',
-        'post_fb_1',
-        'comment',
-        'comment_124',
-        'Sarah Johnson',
-        'user_124',
-        'I love the AI features! This is exactly what my business needs.',
-        'positive',
-        0.92,
-        0,
-        null,
-        now,
-        now
-      );
-
-      // Sample Instagram interactions
-      this.db.prepare(`
-        INSERT INTO engagement_interactions (
-          id, platform, post_id, interaction_type, interaction_id, author_name, 
-          author_id, content, sentiment, sentiment_score, is_processed, 
-          processed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'engagement_ig_1',
-        'instagram',
-        null,
-        'message',
-        'message_456',
-        'Mike Wilson',
-        'user_456',
-        'Hi! I saw your post about AI marketing. Can you tell me more about pricing?',
-        'neutral',
-        0.45,
-        0,
-        null,
-        now,
-        now
-      );
-
-      // Sample LinkedIn interactions
-      this.db.prepare(`
-        INSERT INTO engagement_interactions (
-          id, platform, post_id, interaction_type, interaction_id, author_name, 
-          author_id, content, sentiment, sentiment_score, is_processed, 
-          processed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'engagement_li_1',
-        'linkedin',
-        null,
-        'mention',
-        'mention_789',
-        'David Brown',
-        'user_789',
-        'Great insights on AI marketing! Would love to connect and discuss potential collaboration.',
-        'positive',
-        0.78,
-        0,
-        null,
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO engagement_interactions (
-          id, platform, post_id, interaction_type, interaction_id, author_name, 
-          author_id, content, sentiment, sentiment_score, is_processed, 
-          processed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'engagement_li_2',
-        'linkedin',
-        null,
-        'comment',
-        'comment_790',
-        'Lisa Chen',
-        'user_790',
-        'I disagree with your approach. Traditional marketing still works better than AI.',
-        'negative',
-        -0.65,
-        0,
-        null,
-        now,
-        now
-      );
-    }
-  }
-
-  private async seedSampleQuickReplies() {
-    const existingReplies = this.db.prepare('SELECT id FROM quick_replies LIMIT 1').get();
-    if (!existingReplies) {
-      const now = new Date().toISOString();
-      
-      // General quick replies
-      this.db.prepare(`
-        INSERT INTO quick_replies (
-          id, name, content, category, platform, is_active, usage_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'qr_general_1',
-        'Thank You',
-        'Thank you for your comment! We appreciate your feedback and support.',
-        'gratitude',
-        null,
-        1,
-        0,
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO quick_replies (
-          id, name, content, category, platform, is_active, usage_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'qr_general_2',
-        'Pricing Info',
-        'Thanks for asking! You can find our pricing information at [website]. Feel free to reach out if you have any questions!',
-        'pricing',
-        null,
-        1,
-        0,
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO quick_replies (
-          id, name, content, category, platform, is_active, usage_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'qr_general_3',
-        'Demo Request',
-        'We\'d love to show you a demo! Please visit [website] to schedule a personalized walkthrough of our platform.',
-        'demo',
-        null,
-        1,
-        0,
-        now,
-        now
-      );
-
-      // Platform-specific replies
-      this.db.prepare(`
-        INSERT INTO quick_replies (
-          id, name, content, category, platform, is_active, usage_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'qr_fb_1',
-        'Facebook Welcome',
-        'Welcome to our Facebook community! 🎉 We\'re excited to have you here and share valuable marketing insights.',
-        'welcome',
-        'facebook',
-        1,
-        0,
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO quick_replies (
-          id, name, content, category, platform, is_active, usage_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'qr_ig_1',
-        'Instagram Engagement',
-        'Thanks for the love! ❤️ We\'re passionate about helping businesses grow with AI-powered marketing.',
-        'engagement',
-        'instagram',
-        1,
-        0,
-        now,
-        now
-      );
-
-      this.db.prepare(`
-        INSERT INTO quick_replies (
-          id, name, content, category, platform, is_active, usage_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'qr_li_1',
-        'LinkedIn Professional',
-        'Thank you for your professional interest! We\'d be happy to connect and discuss how our AI marketing solutions can benefit your business.',
-        'professional',
-        'linkedin',
-        1,
-        0,
-        now,
-        now
-      );
-    }
   }
 
   // Analytics Methods
@@ -2154,6 +1711,12 @@ export class AppDatabase {
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }));
+  }
+
+  async clearAnalyticsMetrics(): Promise<void> {
+    console.log('🗑️ Clearing all analytics metrics from database...');
+    this.db.prepare('DELETE FROM analytics_metrics').run();
+    console.log('✅ Analytics metrics cleared successfully');
   }
 
   async getAnalyticsTrends(platform?: string, days: number = 30): Promise<AnalyticsTrend[]> {
@@ -2635,120 +2198,5 @@ export class AppDatabase {
     this.db.prepare('DELETE FROM product_templates WHERE id = ?').run(templateId);
   }
 
-  private async seedSampleProductTemplates() {
-    const existingTemplates = this.db.prepare('SELECT id FROM product_templates LIMIT 1').get();
-    if (!existingTemplates) {
-      const now = new Date().toISOString();
-      
-      // Social Media Product Showcase Template
-      this.db.prepare(`
-        INSERT INTO product_templates (
-          id, name, description, category, template_path, thumbnail_path, settings, is_active, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'template_social_showcase',
-        'Social Media Product Showcase',
-        'Professional product showcase template optimized for social media platforms',
-        'social_media',
-        '/templates/social_showcase.png',
-        '/templates/social_showcase_thumb.png',
-        JSON.stringify({
-          width: 1080,
-          height: 1080,
-          format: 'png',
-          quality: 90
-        }),
-        1,
-        now
-      );
 
-      // E-commerce Product Card Template
-      this.db.prepare(`
-        INSERT INTO product_templates (
-          id, name, description, category, template_path, thumbnail_path, settings, is_active, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'template_ecommerce_card',
-        'E-commerce Product Card',
-        'Clean product card template perfect for online stores and marketplaces',
-        'ecommerce',
-        '/templates/ecommerce_card.png',
-        '/templates/ecommerce_card_thumb.png',
-        JSON.stringify({
-          width: 800,
-          height: 600,
-          format: 'png',
-          quality: 90
-        }),
-        1,
-        now
-      );
-
-      // Lifestyle Product Template
-      this.db.prepare(`
-        INSERT INTO product_templates (
-          id, name, description, category, template_path, thumbnail_path, settings, is_active, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'template_lifestyle',
-        'Lifestyle Product Shot',
-        'Lifestyle-focused template showing products in real-world contexts',
-        'lifestyle',
-        '/templates/lifestyle.png',
-        '/templates/lifestyle_thumb.png',
-        JSON.stringify({
-          width: 1200,
-          height: 800,
-          format: 'png',
-          quality: 90
-        }),
-        1,
-        now
-      );
-
-      // Minimalist Product Template
-      this.db.prepare(`
-        INSERT INTO product_templates (
-          id, name, description, category, template_path, thumbnail_path, settings, is_active, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'template_minimalist',
-        'Minimalist Product Display',
-        'Clean, minimalist template with focus on product details',
-        'minimalist',
-        '/templates/minimalist.png',
-        '/templates/minimalist_thumb.png',
-        JSON.stringify({
-          width: 1000,
-          height: 1000,
-          format: 'png',
-          quality: 95
-        }),
-        1,
-        now
-      );
-
-      // Banner Product Template
-      this.db.prepare(`
-        INSERT INTO product_templates (
-          id, name, description, category, template_path, thumbnail_path, settings, is_active, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        'template_banner',
-        'Product Banner',
-        'Wide banner template for website headers and promotional displays',
-        'banner',
-        '/templates/banner.png',
-        '/templates/banner_thumb.png',
-        JSON.stringify({
-          width: 1920,
-          height: 400,
-          format: 'png',
-          quality: 90
-        }),
-        1,
-        now
-      );
-    }
-  }
 } 

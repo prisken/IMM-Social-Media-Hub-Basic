@@ -630,62 +630,66 @@ const Calendar: React.FC<CalendarProps> = ({
       <div className="calendar-main">
         <div className="calendar-header">
           <div className="calendar-controls">
-            <button 
-              className="nav-button year-nav"
-              onClick={() => navigateYear('prev')}
-              title="Previous Year"
-            >
-              ‹‹
-            </button>
-            <button 
-              className="nav-button"
-              onClick={() => viewMode === 'month' ? navigateMonth('prev') : navigateWeek('prev')}
-              title={viewMode === 'month' ? 'Previous Month' : 'Previous Week'}
-            >
-              ←
-            </button>
-            <div className="calendar-title">
-              <h2>
-                {viewMode === 'month' 
-                  ? format(currentDate, 'MMMM yyyy')
-                  : `Week of ${format(startOfWeek(currentDate), 'MMM dd, yyyy')}`
-                }
-              </h2>
-              <div className="calendar-subtitle">
-                {viewMode === 'month' 
-                  ? `${format(startOfMonth(currentDate), 'MMM dd')} - ${format(endOfMonth(currentDate), 'MMM dd, yyyy')}`
-                  : `${format(startOfWeek(currentDate), 'MMM dd')} - ${format(endOfWeek(currentDate), 'MMM dd, yyyy')}`
-                }
+            <div className="calendar-navigation">
+              <button 
+                className="nav-button year-nav"
+                onClick={() => navigateYear('prev')}
+                title="Previous Year"
+              >
+                ‹‹
+              </button>
+              <button 
+                className="nav-button"
+                onClick={() => viewMode === 'month' ? navigateMonth('prev') : navigateWeek('prev')}
+                title={viewMode === 'month' ? 'Previous Month' : 'Previous Week'}
+              >
+                ←
+              </button>
+              <div className="calendar-title">
+                <h2>
+                  {viewMode === 'month' 
+                    ? format(currentDate, 'MMMM yyyy')
+                    : `Week of ${format(startOfWeek(currentDate), 'MMM dd, yyyy')}`
+                  }
+                </h2>
+                <div className="calendar-subtitle">
+                  {viewMode === 'month' 
+                    ? `${format(startOfMonth(currentDate), 'MMM dd')} - ${format(endOfMonth(currentDate), 'MMM dd, yyyy')}`
+                    : `${format(startOfWeek(currentDate), 'MMM dd')} - ${format(endOfWeek(currentDate), 'MMM dd, yyyy')}`
+                  }
+                </div>
               </div>
+              <button 
+                className="nav-button"
+                onClick={() => viewMode === 'month' ? navigateMonth('next') : navigateWeek('next')}
+                title={viewMode === 'month' ? 'Next Month' : 'Next Week'}
+              >
+                →
+              </button>
+              <button 
+                className="nav-button year-nav"
+                onClick={() => navigateYear('next')}
+                title="Next Year"
+              >
+                ››
+              </button>
             </div>
-            <button 
-              className="nav-button"
-              onClick={() => viewMode === 'month' ? navigateMonth('next') : navigateWeek('next')}
-              title={viewMode === 'month' ? 'Next Month' : 'Next Week'}
-            >
-              →
-            </button>
-            <button 
-              className="nav-button year-nav"
-              onClick={() => navigateYear('next')}
-              title="Next Year"
-            >
-              ››
-            </button>
-            <button 
-              className="today-button"
-              onClick={goToToday}
-              title="Jump to Today's Date"
-            >
-              🏠 Today
-            </button>
-            <button 
-              className="year-month-picker-button"
-              onClick={() => setShowYearMonthPicker(!showYearMonthPicker)}
-              title="Select Year and Month"
-            >
-              📅 {format(currentDate, 'MMM yyyy')}
-            </button>
+            <div className="calendar-actions">
+              <button 
+                className="today-button"
+                onClick={goToToday}
+                title="Jump to Today's Date"
+              >
+                🏠 Today
+              </button>
+              <button 
+                className="year-month-picker-button"
+                onClick={() => setShowYearMonthPicker(!showYearMonthPicker)}
+                title="Select Year and Month"
+              >
+                📅 {format(currentDate, 'MMM yyyy')}
+              </button>
+            </div>
           </div>
           <div className="view-controls">
             <button 

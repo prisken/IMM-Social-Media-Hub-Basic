@@ -1,49 +1,58 @@
-const sqlite3 = require('sqlite3').verbose();
+#!/usr/bin/env node
 
-console.log('🔧 Updating Facebook Page ID');
-console.log('============================\n');
+const Database = require('better-sqlite3');
+const path = require('path');
 
-// The correct Page ID for IMM HK
-const correctPageId = '107398872203735';
+console.log('🔧 Facebook Page ID Update Tool\n');
 
-// Connect to database
-const db = new sqlite3.Database('user_data/imm_marketing_hub.db');
+const dbPath = path.join(__dirname, 'user_data', 'imm_marketing_hub.db');
 
-console.log('🔄 Updating Facebook page ID in database...');
-
-// Update the Facebook account with correct page ID
-db.run(`
-    UPDATE social_media_accounts 
-    SET page_id = ?, 
-        updated_at = datetime('now')
-    WHERE platform = 'facebook' AND account_name = 'IMM HK'
-`, [correctPageId], function(err) {
-    if (err) {
-        console.error('❌ Error updating page ID:', err.message);
-        db.close();
-        return;
-    }
-
-    console.log('✅ Facebook page ID updated successfully!');
-    console.log('📊 Rows affected:', this.changes);
-
-    // Verify the update
-    db.get('SELECT * FROM social_media_accounts WHERE platform = "facebook" AND account_name = ?',
-        ['IMM HK'], (err, row) => {
-            if (err) {
-                console.error('❌ Error querying updated account:', err.message);
-            } else if (row) {
-                console.log('\n📋 Updated Account Details:');
-                console.log('Platform:', row.platform);
-                console.log('Account Name:', row.account_name);
-                console.log('Page ID:', row.page_id);
-                console.log('Access Token (first 20 chars):', row.access_token.substring(0, 20) + '...');
-                console.log('Updated At:', row.updated_at);
-                console.log('\n🎉 Facebook setup complete!');
-                console.log('💡 Your app should now be able to post to Facebook!');
-            } else {
-                console.log('❌ No Facebook account found after update');
-            }
-            db.close();
-        });
-});
+try {
+  const db = new Database(dbPath);
+  
+  // Get current Facebook account
+  const facebookAccount = db.prepare("SELECT * FROM social_media_accounts WHERE platform = 'facebook'").get();
+  
+  if (!facebookAccount) {
+    console.log('❌ No Facebook account found. Please add one first.');
+    process.exit(1);
+  }
+  
+  console.log('📋 Current Facebook Account:');
+  console.log(`  Account Name: ${facebookAccount.account_name}`);
+  console.log(`  Page ID: ${facebookAccount.page_id || 'NOT SET'}`);
+  console.log(`  Business Account ID: ${facebookAccount.business_account_id || 'NOT SET'}`);
+  console.log(`  Active: ${facebookAccount.is_active ? 'Yes' : 'No'}`);
+  
+  console.log('\n📝 To find your Facebook Page ID:');
+  console.log('1. Go to your Facebook Page');
+  console.log('2. Click "About" in the left sidebar');
+  console.log('3. Scroll down to find "Page ID"');
+  console.log('4. Or use: https://findmyfbid.com/');
+  console.log('5. Or go to Page Info and look for the ID');
+  
+  console.log('\n💡 Your Page ID is usually a 15-16 digit number');
+  console.log('   Example: 123456789012345');
+  
+  // If you want to update it programmatically, uncomment the lines below:
+  /*
+  const pageId = 'YOUR_PAGE_ID_HERE'; // Replace with your actual Page ID
+  
+  if (pageId && pageId !== 'YOUR_PAGE_ID_HERE') {
+    db.prepare("UPDATE social_media_accounts SET page_id = ? WHERE platform = 'facebook'").run(pageId);
+    console.log(`✅ Updated Page ID to: ${pageId}`);
+  }
+  */
+  
+  db.close();
+  
+  console.log('\n📋 Next Steps:');
+  console.log('1. Find your Facebook Page ID using the methods above');
+  console.log('2. Update the page_id in the database');
+  console.log('3. Restart the app to see the changes');
+  console.log('4. Test the connection in Settings');
+  
+} catch (error) {
+  console.error('❌ Error:', error.message);
+  process.exit(1);
+}
