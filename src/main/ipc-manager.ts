@@ -357,6 +357,22 @@ export class IPCManager {
     ipcMain.handle('analytics:fetch-facebook-data', async () => {
       try {
         console.log('🔄 Manually triggering Facebook data fetch...');
+        
+        // Get the current Facebook account with fresh data from database
+        const accounts = await this.database.getSocialMediaAccounts();
+        const facebookAccount = accounts.find(acc => acc.platform === 'facebook' && acc.isActive);
+        
+        if (!facebookAccount) {
+          return { success: false, error: 'No active Facebook account found' };
+        }
+        
+        if (!facebookAccount.accessToken) {
+          return { success: false, error: 'No access token found for Facebook account' };
+        }
+        
+        console.log('📱 Using Facebook account:', facebookAccount.accountName);
+        console.log('🔑 Token length:', facebookAccount.accessToken.length);
+        
         const facebookFetcher = new FacebookPostsFetcher(this.database);
         await facebookFetcher.fetchExistingPosts();
         console.log('✅ Facebook data fetch completed');

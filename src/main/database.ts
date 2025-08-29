@@ -1719,6 +1719,12 @@ export class AppDatabase {
     console.log('✅ Analytics metrics cleared successfully');
   }
 
+  async clearAnalyticsMetricsForPost(postId: string, platform: string): Promise<void> {
+    console.log(`🗑️ Clearing analytics metrics for post ${postId} on ${platform}...`);
+    this.db.prepare('DELETE FROM analytics_metrics WHERE post_id = ? AND platform = ?').run(postId, platform);
+    console.log(`✅ Analytics metrics cleared for post ${postId}`);
+  }
+
   async getAnalyticsTrends(platform?: string, days: number = 30): Promise<AnalyticsTrend[]> {
     const endDate = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
