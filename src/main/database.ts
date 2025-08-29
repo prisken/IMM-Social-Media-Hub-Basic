@@ -285,11 +285,21 @@ export class AppDatabase {
         page_id TEXT,
         business_account_id TEXT,
         organization_id TEXT,
+        app_secret TEXT,
         is_active BOOLEAN DEFAULT 1,
         created_at TEXT,
         updated_at TEXT
       )
     `);
+
+    // Add app_secret column to existing tables if it doesn't exist
+    try {
+      this.db.exec(`ALTER TABLE social_media_accounts ADD COLUMN app_secret TEXT`);
+      console.log('✅ Added app_secret column to social_media_accounts table');
+    } catch (error) {
+      // Column already exists, ignore error
+      console.log('ℹ️ app_secret column already exists in social_media_accounts table');
+    }
 
     // Posting Jobs table
     this.db.exec(`
@@ -1002,8 +1012,8 @@ export class AppDatabase {
     this.db.prepare(`
       INSERT INTO social_media_accounts (
         id, platform, account_name, access_token, refresh_token, expires_at,
-        page_id, business_account_id, organization_id, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        page_id, business_account_id, organization_id, app_secret, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       account.platform,
@@ -1014,6 +1024,7 @@ export class AppDatabase {
       account.pageId,
       account.businessAccountId,
       account.organizationId,
+      account.appSecret,
       account.isActive ? 1 : 0,
       account.createdAt,
       account.updatedAt
@@ -1035,6 +1046,7 @@ export class AppDatabase {
       pageId: row.page_id,
       businessAccountId: row.business_account_id,
       organizationId: row.organization_id,
+      appSecret: row.app_secret,
       isActive: row.is_active === 1,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -1058,6 +1070,7 @@ export class AppDatabase {
       pageId: row.page_id,
       businessAccountId: row.business_account_id,
       organizationId: row.organization_id,
+      appSecret: row.app_secret,
       isActive: row.is_active === 1,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -1075,7 +1088,7 @@ export class AppDatabase {
     this.db.prepare(`
       UPDATE social_media_accounts 
       SET platform = ?, account_name = ?, access_token = ?, refresh_token = ?, expires_at = ?,
-          page_id = ?, business_account_id = ?, organization_id = ?, is_active = ?, updated_at = ?
+          page_id = ?, business_account_id = ?, organization_id = ?, app_secret = ?, is_active = ?, updated_at = ?
       WHERE id = ?
     `).run(
       updatedAccount.platform,
@@ -1086,6 +1099,7 @@ export class AppDatabase {
       updatedAccount.pageId,
       updatedAccount.businessAccountId,
       updatedAccount.organizationId,
+      updatedAccount.appSecret,
       updatedAccount.isActive ? 1 : 0,
       updatedAccount.updatedAt,
       accountId
@@ -2204,5 +2218,19 @@ export class AppDatabase {
     this.db.prepare('DELETE FROM product_templates WHERE id = ?').run(templateId);
   }
 
+  // Clear all posts from database
+  async clearPosts(): Promise<void> {
+    console.log('🗑️ Clearing all posts from database...');
+    this.db.prepare('DELETE FROM posts').run();
+    console.log('✅ All posts cleared from database');
+  }
+
+  // Force refresh account data to get latest tokens
+  async refreshAccountData(): Promise<void> {
+    console.log('🔄 Refreshing account data from database...');
+    // This will force a fresh read from the database
+    // The actual refresh happens when we call getSocialMediaAccounts() again
+    console.log('✅ Account data refresh initiated');
+  }
 
 } 

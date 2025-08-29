@@ -14,6 +14,7 @@ export interface SocialMediaAccount {
   businessAccountId?: string; // For Instagram business accounts
   organizationId?: string; // For LinkedIn organizations
   threadsAccountId?: string; // For Threads accounts
+  appSecret?: string; // For automatic token refresh
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

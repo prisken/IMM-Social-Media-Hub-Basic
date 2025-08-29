@@ -45,6 +45,81 @@ export class AnalyticsService {
     }
   }
 
+  async getAnalyticsWithContentTypes(): Promise<any> {
+    try {
+      const platforms = ['facebook', 'threads'];
+      const analytics = {};
+
+      for (const platform of platforms) {
+        // Get all posts for this platform
+        const posts = await this.database.getPosts();
+        const platformPosts = posts.filter(post => post.platform === platform);
+        
+        // Get analytics metrics for all posts
+        const metrics = await this.database.getAnalyticsMetrics(undefined, platform);
+        
+        // Separate posts from stories/reels based on content
+        const regularPosts = platformPosts.filter(post => {
+          const content = post.content || '';
+          // Regular Posts: TEXT CONTENT, IMAGE CONTENT, LINK CONTENT, VIDEO CONTENT
+          return content.includes('[TEXT CONTENT]') || content.includes('[LINK CONTENT]') || content.includes('[IMAGE CONTENT]') || content.includes('[VIDEO CONTENT]');
+        });
+        
+        const storiesReels = platformPosts.filter(post => {
+          const content = post.content || '';
+          // Stories/Reels: STORY CONTENT, REEL CONTENT
+          return content.includes('[STORY CONTENT]') || content.includes('[REEL CONTENT]');
+        });
+        
+        console.log(`📊 Content separation for ${platform}:`);
+        console.log(`   Total posts in DB: ${platformPosts.length}`);
+        console.log(`   Regular posts: ${regularPosts.length}`);
+        console.log(`   Stories/reels: ${storiesReels.length}`);
+        
+        // Log content types for debugging
+        platformPosts.forEach(post => {
+          console.log(`   Post ${post.id}: ${post.content?.substring(0, 50)}...`);
+        });
+
+        // Calculate metrics for regular posts
+        const postMetrics = metrics.filter(metric => 
+          regularPosts.some(post => post.id === metric.postId)
+        );
+        
+        // Calculate metrics for stories/reels
+        const storyReelMetrics = metrics.filter(metric => 
+          storiesReels.some(post => post.id === metric.postId)
+        );
+
+        analytics[platform] = {
+          posts: {
+            count: regularPosts.length,
+            reach: postMetrics.reduce((sum, m) => sum + m.reach, 0),
+            engagement: postMetrics.reduce((sum, m) => sum + m.likes + m.comments + m.shares, 0),
+            impressions: postMetrics.reduce((sum, m) => sum + m.impressions, 0)
+          },
+          storiesReels: {
+            count: storiesReels.length,
+            reach: storyReelMetrics.reduce((sum, m) => sum + m.reach, 0),
+            engagement: storyReelMetrics.reduce((sum, m) => sum + m.likes + m.comments + m.shares, 0),
+            impressions: storyReelMetrics.reduce((sum, m) => sum + m.impressions, 0)
+          },
+          total: {
+            count: platformPosts.length,
+            reach: metrics.reduce((sum, m) => sum + m.reach, 0),
+            engagement: metrics.reduce((sum, m) => sum + m.likes + m.comments + m.shares, 0),
+            impressions: metrics.reduce((sum, m) => sum + m.impressions, 0)
+          }
+        };
+      }
+
+      return analytics;
+    } catch (error) {
+      console.error('❌ Error getting analytics with content types:', error);
+      return {};
+    }
+  }
+
   async updateDailyTrends(): Promise<void> {
     try {
       const today = new Date().toISOString().split('T')[0];

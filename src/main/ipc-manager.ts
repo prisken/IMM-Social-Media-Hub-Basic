@@ -312,43 +312,72 @@ export class IPCManager {
   private setupAnalyticsIPC(): void {
     ipcMain.handle('analytics:get-data', async () => {
       try {
+        // Use the new detailed analytics method
+        const detailedAnalytics = await this.analyticsService.getAnalyticsWithContentTypes();
+        
+        // Format for backward compatibility
         const analyticsData = {
-          facebook: { reach: 0, posts: 0, engagement: 0 },
+          facebook: { 
+            reach: detailedAnalytics.facebook?.total?.reach || 0, 
+            posts: detailedAnalytics.facebook?.total?.count || 0, 
+            engagement: detailedAnalytics.facebook?.total?.engagement || 0,
+            postsCount: detailedAnalytics.facebook?.posts?.count || 0,
+            storiesReelsCount: detailedAnalytics.facebook?.storiesReels?.count || 0,
+            postsReach: detailedAnalytics.facebook?.posts?.reach || 0,
+            storiesReelsReach: detailedAnalytics.facebook?.storiesReels?.reach || 0,
+            postsEngagement: detailedAnalytics.facebook?.posts?.engagement || 0,
+            storiesReelsEngagement: detailedAnalytics.facebook?.storiesReels?.engagement || 0
+          },
           instagram: { reach: 0, posts: 0, engagement: 0 },
           linkedin: { reach: 0, posts: 0, engagement: 0 },
-          threads: { reach: 0, posts: 0, engagement: 0 },
-          total: { reach: 0, posts: 0, engagement: 0 }
+          threads: { 
+            reach: detailedAnalytics.threads?.total?.reach || 0, 
+            posts: detailedAnalytics.threads?.total?.count || 0, 
+            engagement: detailedAnalytics.threads?.total?.engagement || 0,
+            postsCount: detailedAnalytics.threads?.posts?.count || 0,
+            storiesReelsCount: detailedAnalytics.threads?.storiesReels?.count || 0,
+            postsReach: detailedAnalytics.threads?.posts?.reach || 0,
+            storiesReelsReach: detailedAnalytics.threads?.storiesReels?.reach || 0,
+            postsEngagement: detailedAnalytics.threads?.posts?.engagement || 0,
+            storiesReelsEngagement: detailedAnalytics.threads?.storiesReels?.engagement || 0
+          },
+          total: { 
+            reach: (detailedAnalytics.facebook?.total?.reach || 0) + (detailedAnalytics.threads?.total?.reach || 0), 
+            posts: (detailedAnalytics.facebook?.total?.count || 0) + (detailedAnalytics.threads?.total?.count || 0), 
+            engagement: (detailedAnalytics.facebook?.total?.engagement || 0) + (detailedAnalytics.threads?.total?.engagement || 0),
+            postsCount: (detailedAnalytics.facebook?.posts?.count || 0) + (detailedAnalytics.threads?.posts?.count || 0),
+            storiesReelsCount: (detailedAnalytics.facebook?.storiesReels?.count || 0) + (detailedAnalytics.threads?.storiesReels?.count || 0),
+            postsReach: (detailedAnalytics.facebook?.posts?.reach || 0) + (detailedAnalytics.threads?.posts?.reach || 0),
+            storiesReelsReach: (detailedAnalytics.facebook?.storiesReels?.reach || 0) + (detailedAnalytics.threads?.storiesReels?.reach || 0),
+            postsEngagement: (detailedAnalytics.facebook?.posts?.engagement || 0) + (detailedAnalytics.threads?.posts?.engagement || 0),
+            storiesReelsEngagement: (detailedAnalytics.facebook?.storiesReels?.engagement || 0) + (detailedAnalytics.threads?.storiesReels?.engagement || 0)
+          }
         };
         
-        // Get analytics metrics for each platform
-        const platforms = ['facebook', 'threads'];
-        
-        for (const platform of platforms) {
-          const metrics = await this.database.getAnalyticsMetrics(undefined, platform);
-          
-          if (metrics.length > 0) {
-            const platformData = analyticsData[platform as keyof typeof analyticsData];
-            platformData.reach = metrics.reduce((sum, m) => sum + m.reach, 0);
-            platformData.posts = metrics.length;
-            platformData.engagement = metrics.reduce((sum, m) => 
-              sum + m.likes + m.comments + m.shares, 0);
-          }
-        }
-        
-        // Calculate totals (only active platforms)
-        analyticsData.total.reach = analyticsData.facebook.reach + analyticsData.threads.reach;
-        analyticsData.total.posts = analyticsData.facebook.posts + analyticsData.threads.posts;
-        analyticsData.total.engagement = analyticsData.facebook.engagement + analyticsData.threads.engagement;
-        
-        return analyticsData;
+                return analyticsData;
       } catch (error) {
         console.error('Error getting analytics data:', error);
         return {
-          facebook: { reach: 0, posts: 0, engagement: 0 },
+          facebook: { 
+            reach: 0, posts: 0, engagement: 0,
+            postsCount: 0, storiesReelsCount: 0,
+            postsReach: 0, storiesReelsReach: 0,
+            postsEngagement: 0, storiesReelsEngagement: 0
+          },
           instagram: { reach: 0, posts: 0, engagement: 0 },
           linkedin: { reach: 0, posts: 0, engagement: 0 },
-          threads: { reach: 0, posts: 0, engagement: 0 },
-          total: { reach: 0, posts: 0, engagement: 0 }
+          threads: { 
+            reach: 0, posts: 0, engagement: 0,
+            postsCount: 0, storiesReelsCount: 0,
+            postsReach: 0, storiesReelsReach: 0,
+            postsEngagement: 0, storiesReelsEngagement: 0
+          },
+          total: { 
+            reach: 0, posts: 0, engagement: 0,
+            postsCount: 0, storiesReelsCount: 0,
+            postsReach: 0, storiesReelsReach: 0,
+            postsEngagement: 0, storiesReelsEngagement: 0
+          }
         };
       }
     });
@@ -434,8 +463,11 @@ export class IPCManager {
         // Clear analytics metrics
         await this.database.clearAnalyticsMetrics();
         
-        // Clear posts (optional - uncomment if you want to clear posts too)
-        // await this.database.clearPosts();
+        // Clear posts to ensure fresh data fetch
+        await this.database.clearPosts();
+        
+        // Force refresh account data to get latest tokens
+        await this.database.refreshAccountData();
         
         console.log('✅ Analytics data cleared successfully');
         return { success: true, message: 'Analytics data cleared successfully' };

@@ -794,4 +794,37 @@
   margin: 0;
   color: #6c757d;
   font-size: 1.1rem;
+}
+
+/* ===== Enhanced Facebook Analytics Cards ===== */
+.analytics-card.facebook-posts {
+  border-color: #1877f2;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
+  box-shadow: 0 4px 15px rgba(24, 119, 242, 0.1);
+}
+
+.analytics-card.facebook-posts:hover {
+  box-shadow: 0 6px 20px rgba(24, 119, 242, 0.2);
+  border-color: #166fe5;
+}
+
+.analytics-card.facebook-posts h4 {
+  color: #1877f2;
+  font-weight: 600;
+}
+
+.analytics-card.facebook-stories-reels {
+  border-color: #e4405f;
+  background: linear-gradient(135deg, #ffffff 0%, #fff5f5 100%);
+  box-shadow: 0 4px 15px rgba(228, 64, 95, 0.1);
+}
+
+.analytics-card.facebook-stories-reels:hover {
+  box-shadow: 0 6px 20px rgba(228, 64, 95, 0.2);
+  border-color: #d63384;
+}
+
+.analytics-card.facebook-stories-reels h4 {
+  color: #e4405f;
+  font-weight: 600;
 } 

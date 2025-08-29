@@ -12,6 +12,7 @@ interface SocialMediaAccount {
   businessAccountId?: string;
   organizationId?: string;
   threadsAccountId?: string;
+  appSecret?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -25,6 +26,7 @@ interface AccountFormData {
   businessAccountId: string;
   organizationId: string;
   threadsAccountId: string;
+  appSecret: string;
 }
 
 const SocialMediaAccounts: React.FC = () => {
@@ -43,7 +45,8 @@ const SocialMediaAccounts: React.FC = () => {
     pageId: '',
     businessAccountId: '',
     organizationId: '',
-    threadsAccountId: ''
+    threadsAccountId: '',
+    appSecret: ''
   });
 
   const platforms = [
@@ -94,7 +97,8 @@ const SocialMediaAccounts: React.FC = () => {
       pageId: '',
       businessAccountId: '',
       organizationId: '',
-      threadsAccountId: ''
+      threadsAccountId: '',
+      appSecret: ''
     });
     setEditingAccount(null);
     setShowAddForm(false);
@@ -118,6 +122,7 @@ const SocialMediaAccounts: React.FC = () => {
           businessAccountId: formData.businessAccountId || null,
           organizationId: formData.organizationId || null,
           threadsAccountId: formData.threadsAccountId || null,
+          appSecret: formData.appSecret || null,
           updatedAt: new Date().toISOString()
         });
         setMessage('Account updated successfully!');
@@ -131,6 +136,7 @@ const SocialMediaAccounts: React.FC = () => {
           businessAccountId: formData.businessAccountId || null,
           organizationId: formData.organizationId || null,
           threadsAccountId: formData.threadsAccountId || null,
+          appSecret: formData.appSecret || null,
           isActive: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -157,7 +163,8 @@ const SocialMediaAccounts: React.FC = () => {
       pageId: account.pageId || '',
       businessAccountId: account.businessAccountId || '',
       organizationId: account.organizationId || '',
-      threadsAccountId: account.threadsAccountId || ''
+      threadsAccountId: account.threadsAccountId || '',
+      appSecret: account.appSecret || ''
     });
     setShowAddForm(true);
   };
@@ -271,6 +278,19 @@ const SocialMediaAccounts: React.FC = () => {
             />
           </div>
 
+          <div className="form-group">
+            <label>App Secret (Optional - for auto token refresh)</label>
+            <input 
+              type="password"
+              value={formData.appSecret}
+              onChange={(e) => setFormData({...formData, appSecret: e.target.value})}
+              placeholder="Enter app secret for automatic token refresh"
+            />
+            <small className="form-help">
+              💡 Get this from Facebook Developers → Your App → Settings → Basic → App Secret
+            </small>
+          </div>
+
           <div className="form-row">
             <div className="form-group">
               <label>Page ID</label>
@@ -368,6 +388,13 @@ const SocialMediaAccounts: React.FC = () => {
                 )}
                 <p><strong>Status:</strong> {account.isActive ? 'Active' : 'Inactive'}</p>
                 <p><strong>Added:</strong> {new Date(account.createdAt).toLocaleDateString()}</p>
+                <p><strong>Auto Token Refresh:</strong> 
+                  {account.appSecret ? (
+                    <span style={{color: 'green'}}>✅ Enabled</span>
+                  ) : (
+                    <span style={{color: 'orange'}}>⚠️ Not configured</span>
+                  )}
+                </p>
               </div>
 
               <div className="account-actions">
@@ -415,6 +442,18 @@ const SocialMediaAccounts: React.FC = () => {
               </li>
               <li><strong>Find Your Page ID:</strong> Go to your Facebook Page → "About" → "Page Info" → Copy the Page ID</li>
               <li><strong>Get Business Account ID:</strong> In Business Manager → "Business Settings" → "Business Info" → Copy the Business ID</li>
+              <li><strong>Get App Secret (Optional - for auto token refresh):</strong>
+                <ul>
+                  <li>In your Facebook app dashboard, go to <strong>"Settings" → "Basic"</strong></li>
+                  <li>Scroll down to the <strong>"App Secret"</strong> section</li>
+                  <li>Click <strong>"Show"</strong> next to the App Secret (you may need to enter your Facebook password)</li>
+                  <li>Copy the App Secret (it's a long string of letters and numbers)</li>
+                  <li><strong>⚠️ Keep this secret secure!</strong> Never share it publicly</li>
+                </ul>
+                <div className="note">
+                  <p><strong>💡 Why App Secret?</strong> Adding your App Secret enables automatic token refresh, so you won't need to manually update your access token every 24 hours. The app will automatically refresh your token to a 60-day long-lived token.</p>
+                </div>
+              </li>
             </ol>
           </div>
           

@@ -2,11 +2,41 @@ import React, { useEffect, useState } from 'react';
 import './Dashboard.css';
 
 interface AnalyticsData {
-  facebook: { reach: number; posts: number; engagement: number };
+  facebook: { 
+    reach: number; 
+    posts: number; 
+    engagement: number;
+    postsCount: number;
+    storiesReelsCount: number;
+    postsReach: number;
+    storiesReelsReach: number;
+    postsEngagement: number;
+    storiesReelsEngagement: number;
+  };
   instagram: { reach: number; posts: number; engagement: number };
   linkedin: { reach: number; posts: number; engagement: number };
-  threads: { reach: number; posts: number; engagement: number };
-  total: { reach: number; posts: number; engagement: number };
+  threads: { 
+    reach: number; 
+    posts: number; 
+    engagement: number;
+    postsCount: number;
+    storiesReelsCount: number;
+    postsReach: number;
+    storiesReelsReach: number;
+    postsEngagement: number;
+    storiesReelsEngagement: number;
+  };
+  total: { 
+    reach: number; 
+    posts: number; 
+    engagement: number;
+    postsCount: number;
+    storiesReelsCount: number;
+    postsReach: number;
+    storiesReelsReach: number;
+    postsEngagement: number;
+    storiesReelsEngagement: number;
+  };
 }
 
 interface ScheduleItem {
@@ -77,11 +107,26 @@ interface DashboardProps {
 
 function Dashboard({ navigateToSettings }: DashboardProps) {
   const [analytics, setAnalytics] = useState<AnalyticsData>({
-    facebook: { reach: 0, posts: 0, engagement: 0 },
+    facebook: { 
+      reach: 0, posts: 0, engagement: 0,
+      postsCount: 0, storiesReelsCount: 0,
+      postsReach: 0, storiesReelsReach: 0,
+      postsEngagement: 0, storiesReelsEngagement: 0
+    },
     instagram: { reach: 0, posts: 0, engagement: 0 },
     linkedin: { reach: 0, posts: 0, engagement: 0 },
-    threads: { reach: 0, posts: 0, engagement: 0 },
-    total: { reach: 0, posts: 0, engagement: 0 }
+    threads: { 
+      reach: 0, posts: 0, engagement: 0,
+      postsCount: 0, storiesReelsCount: 0,
+      postsReach: 0, storiesReelsReach: 0,
+      postsEngagement: 0, storiesReelsEngagement: 0
+    },
+    total: { 
+      reach: 0, posts: 0, engagement: 0,
+      postsCount: 0, storiesReelsCount: 0,
+      postsReach: 0, storiesReelsReach: 0,
+      postsEngagement: 0, storiesReelsEngagement: 0
+    }
   });
 
   const [pendingActions, setPendingActions] = useState<string[]>([]);
@@ -220,10 +265,36 @@ function Dashboard({ navigateToSettings }: DashboardProps) {
       // Load analytics data (will show 0s if no data available)
       try {
         const analyticsData = await window.electronAPI.analytics.getData();
-        // Add threads data if not present
+        // Add threads data if not present and ensure all required fields exist
         const analyticsWithThreads: AnalyticsData = {
           ...analyticsData,
-          threads: (analyticsData as any).threads || { reach: 0, posts: 0, engagement: 0 }
+          facebook: {
+            ...analyticsData.facebook,
+            postsCount: (analyticsData.facebook as any)?.postsCount || analyticsData.facebook.posts || 0,
+            storiesReelsCount: (analyticsData.facebook as any)?.storiesReelsCount || 0,
+            postsReach: (analyticsData.facebook as any)?.postsReach || analyticsData.facebook.reach || 0,
+            storiesReelsReach: (analyticsData.facebook as any)?.storiesReelsReach || 0,
+            postsEngagement: (analyticsData.facebook as any)?.postsEngagement || analyticsData.facebook.engagement || 0,
+            storiesReelsEngagement: (analyticsData.facebook as any)?.storiesReelsEngagement || 0
+          },
+          threads: {
+            ...(analyticsData as any).threads || { reach: 0, posts: 0, engagement: 0 },
+            postsCount: (analyticsData as any)?.threads?.postsCount || (analyticsData as any)?.threads?.posts || 0,
+            storiesReelsCount: (analyticsData as any)?.threads?.storiesReelsCount || 0,
+            postsReach: (analyticsData as any)?.threads?.postsReach || (analyticsData as any)?.threads?.reach || 0,
+            storiesReelsReach: (analyticsData as any)?.threads?.storiesReelsReach || 0,
+            postsEngagement: (analyticsData as any)?.threads?.postsEngagement || (analyticsData as any)?.threads?.engagement || 0,
+            storiesReelsEngagement: (analyticsData as any)?.threads?.storiesReelsEngagement || 0
+          },
+          total: {
+            ...analyticsData.total,
+            postsCount: (analyticsData.total as any)?.postsCount || analyticsData.total.posts || 0,
+            storiesReelsCount: (analyticsData.total as any)?.storiesReelsCount || 0,
+            postsReach: (analyticsData.total as any)?.postsReach || analyticsData.total.reach || 0,
+            storiesReelsReach: (analyticsData.total as any)?.storiesReelsReach || 0,
+            postsEngagement: (analyticsData.total as any)?.postsEngagement || analyticsData.total.engagement || 0,
+            storiesReelsEngagement: (analyticsData.total as any)?.storiesReelsEngagement || 0
+          }
         };
         setAnalytics(analyticsWithThreads);
       } catch (analyticsError) {
@@ -384,23 +455,50 @@ function Dashboard({ navigateToSettings }: DashboardProps) {
           </div>
         )}
         <div className="analytics-grid">
+          {/* Facebook Posts Card */}
           <div 
-            className="analytics-card"
+            className="analytics-card facebook-posts"
             onClick={!platformStats.facebook?.connected ? () => navigateToSettings?.('social-media') : undefined}
             style={!platformStats.facebook?.connected ? { cursor: 'pointer' } : {}}
           >
-            <h4>Facebook</h4>
+            <h4>📝 Facebook Posts</h4>
             <div className="analytics-stats">
               <div className="stat">
-                <span className="stat-value">{analytics.facebook.reach.toLocaleString()}</span>
+                <span className="stat-value">{analytics.facebook.postsReach.toLocaleString()}</span>
                 <span className="stat-label">reach</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{analytics.facebook.posts}</span>
+                <span className="stat-value">{analytics.facebook.postsCount}</span>
                 <span className="stat-label">posts</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{analytics.facebook.engagement}</span>
+                <span className="stat-value">{analytics.facebook.postsEngagement}</span>
+                <span className="stat-label">engagement</span>
+              </div>
+            </div>
+            {!platformStats.facebook?.connected && (
+              <div className="platform-warning">Not connected - Click to connect</div>
+            )}
+          </div>
+
+          {/* Facebook Stories/Reels Card */}
+          <div 
+            className="analytics-card facebook-stories-reels"
+            onClick={!platformStats.facebook?.connected ? () => navigateToSettings?.('social-media') : undefined}
+            style={!platformStats.facebook?.connected ? { cursor: 'pointer' } : {}}
+          >
+            <h4>🎬 Facebook Stories/Reels</h4>
+            <div className="analytics-stats">
+              <div className="stat">
+                <span className="stat-value">{analytics.facebook.storiesReelsReach.toLocaleString()}</span>
+                <span className="stat-label">reach</span>
+              </div>
+              <div className="stat">
+                <span className="stat-value">{analytics.facebook.storiesReelsCount}</span>
+                <span className="stat-label">content</span>
+              </div>
+              <div className="stat">
+                <span className="stat-value">{analytics.facebook.storiesReelsEngagement}</span>
                 <span className="stat-label">engagement</span>
               </div>
             </div>
