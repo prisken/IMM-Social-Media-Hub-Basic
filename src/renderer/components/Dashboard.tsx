@@ -5,6 +5,7 @@ interface AnalyticsData {
   facebook: { reach: number; posts: number; engagement: number };
   instagram: { reach: number; posts: number; engagement: number };
   linkedin: { reach: number; posts: number; engagement: number };
+  threads: { reach: number; posts: number; engagement: number };
   total: { reach: number; posts: number; engagement: number };
 }
 
@@ -19,6 +20,7 @@ interface PlatformStats {
   facebook: { connected: boolean; accountName?: string };
   instagram: { connected: boolean; accountName?: string };
   linkedin: { connected: boolean; accountName?: string };
+  threads: { connected: boolean; accountName?: string };
 }
 
 interface AnalyticsMetrics {
@@ -69,11 +71,16 @@ interface TopPost {
   };
 }
 
-function Dashboard() {
+interface DashboardProps {
+  navigateToSettings?: (tab?: string) => void;
+}
+
+function Dashboard({ navigateToSettings }: DashboardProps) {
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     facebook: { reach: 0, posts: 0, engagement: 0 },
     instagram: { reach: 0, posts: 0, engagement: 0 },
     linkedin: { reach: 0, posts: 0, engagement: 0 },
+    threads: { reach: 0, posts: 0, engagement: 0 },
     total: { reach: 0, posts: 0, engagement: 0 }
   });
 
@@ -82,7 +89,8 @@ function Dashboard() {
   const [platformStats, setPlatformStats] = useState<PlatformStats>({
     facebook: { connected: false },
     instagram: { connected: false },
-    linkedin: { connected: false }
+    linkedin: { connected: false },
+    threads: { connected: false }
   });
   const [loading, setLoading] = useState(true);
   
@@ -202,12 +210,22 @@ function Dashboard() {
       
       // Load platform stats first to check connections
       const stats = await window.electronAPI.analytics.getPlatformStats();
-      setPlatformStats(stats);
+      // Add threads platform if not present
+      const statsWithThreads: PlatformStats = {
+        ...stats,
+        threads: (stats as any).threads || { connected: false, accountName: undefined }
+      };
+      setPlatformStats(statsWithThreads);
       
       // Load analytics data (will show 0s if no data available)
       try {
         const analyticsData = await window.electronAPI.analytics.getData();
-        setAnalytics(analyticsData);
+        // Add threads data if not present
+        const analyticsWithThreads: AnalyticsData = {
+          ...analyticsData,
+          threads: (analyticsData as any).threads || { reach: 0, posts: 0, engagement: 0 }
+        };
+        setAnalytics(analyticsWithThreads);
       } catch (analyticsError) {
         console.warn('Analytics data not available:', analyticsError);
         // Keep default values (all zeros)
@@ -312,32 +330,32 @@ function Dashboard() {
       <section className="platform-status">
         <h3>Platform Connections</h3>
         <div className="platform-grid">
-          <div className={`platform-card ${platformStats.facebook?.connected ? 'connected' : 'disconnected'}`}>
+          <div 
+            className={`platform-card ${platformStats.facebook?.connected ? 'connected' : 'disconnected'}`}
+            onClick={!platformStats.facebook?.connected ? () => navigateToSettings?.('social-media') : undefined}
+            style={!platformStats.facebook?.connected ? { cursor: 'pointer' } : {}}
+          >
             <h4>Facebook {getPlatformStatusIcon(platformStats.facebook?.connected || false)}</h4>
             <p>{getPlatformStatusText(platformStats.facebook?.connected || false, platformStats.facebook?.accountName)}</p>
             {!platformStats.facebook?.connected && (
-              <button onClick={() => window.location.hash = '#settings'} className="connect-platform-button">
+              <button onClick={(e) => { e.stopPropagation(); navigateToSettings?.('social-media'); }} className="connect-platform-button">
                 Connect Facebook
               </button>
             )}
           </div>
           
-          <div className={`platform-card ${platformStats.instagram?.connected ? 'connected' : 'disconnected'}`}>
-            <h4>Instagram {getPlatformStatusIcon(platformStats.instagram?.connected || false)}</h4>
-            <p>{getPlatformStatusText(platformStats.instagram?.connected || false, platformStats.instagram?.accountName)}</p>
-            {!platformStats.instagram?.connected && (
-              <button onClick={() => window.location.hash = '#settings'} className="connect-platform-button">
-                Connect Instagram
-              </button>
-            )}
-          </div>
+
           
-          <div className={`platform-card ${platformStats.linkedin?.connected ? 'connected' : 'disconnected'}`}>
-            <h4>LinkedIn {getPlatformStatusIcon(platformStats.linkedin?.connected || false)}</h4>
-            <p>{getPlatformStatusText(platformStats.linkedin?.connected || false, platformStats.linkedin?.accountName)}</p>
-            {!platformStats.linkedin?.connected && (
-              <button onClick={() => window.location.hash = '#settings'} className="connect-platform-button">
-                Connect LinkedIn
+          <div 
+            className={`platform-card ${platformStats.threads?.connected ? 'connected' : 'disconnected'}`}
+            onClick={!platformStats.threads?.connected ? () => navigateToSettings?.('social-media') : undefined}
+            style={!platformStats.threads?.connected ? { cursor: 'pointer' } : {}}
+          >
+            <h4>Threads {getPlatformStatusIcon(platformStats.threads?.connected || false)}</h4>
+            <p>{getPlatformStatusText(platformStats.threads?.connected || false, platformStats.threads?.accountName)}</p>
+            {!platformStats.threads?.connected && (
+              <button onClick={(e) => { e.stopPropagation(); navigateToSettings?.('social-media'); }} className="connect-platform-button">
+                Connect Threads
               </button>
             )}
           </div>
@@ -360,13 +378,17 @@ function Dashboard() {
         {!hasAnyConnectedPlatforms() && (
           <div className="section-warning">
             <p>⚠️ Connect your social media accounts to see analytics data</p>
-            <button onClick={() => window.location.hash = '#settings'} className="connect-button">
+            <button onClick={() => navigateToSettings?.('social-media')} className="connect-button">
               Go to Settings
             </button>
           </div>
         )}
         <div className="analytics-grid">
-          <div className="analytics-card">
+          <div 
+            className="analytics-card"
+            onClick={!platformStats.facebook?.connected ? () => navigateToSettings?.('social-media') : undefined}
+            style={!platformStats.facebook?.connected ? { cursor: 'pointer' } : {}}
+          >
             <h4>Facebook</h4>
             <div className="analytics-stats">
               <div className="stat">
@@ -383,49 +405,34 @@ function Dashboard() {
               </div>
             </div>
             {!platformStats.facebook?.connected && (
-              <div className="platform-warning">Not connected</div>
+              <div className="platform-warning">Not connected - Click to connect</div>
             )}
           </div>
           
-          <div className="analytics-card">
-            <h4>Instagram</h4>
-            <div className="analytics-stats">
-              <div className="stat">
-                <span className="stat-value">{analytics.instagram.reach.toLocaleString()}</span>
-                <span className="stat-label">reach</span>
-              </div>
-              <div className="stat">
-                <span className="stat-value">{analytics.instagram.posts}</span>
-                <span className="stat-label">posts</span>
-              </div>
-              <div className="stat">
-                <span className="stat-value">{analytics.instagram.engagement}</span>
-                <span className="stat-label">engagement</span>
-              </div>
-            </div>
-            {!platformStats.instagram?.connected && (
-              <div className="platform-warning">Not connected</div>
-            )}
-          </div>
+
           
-          <div className="analytics-card">
-            <h4>LinkedIn</h4>
+          <div 
+            className="analytics-card"
+            onClick={!platformStats.threads?.connected ? () => navigateToSettings?.('social-media') : undefined}
+            style={!platformStats.threads?.connected ? { cursor: 'pointer' } : {}}
+          >
+            <h4>Threads</h4>
             <div className="analytics-stats">
               <div className="stat">
-                <span className="stat-value">{analytics.linkedin.reach.toLocaleString()}</span>
+                <span className="stat-value">{analytics.threads?.reach?.toLocaleString() || '0'}</span>
                 <span className="stat-label">reach</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{analytics.linkedin.posts}</span>
+                <span className="stat-value">{analytics.threads?.posts || 0}</span>
                 <span className="stat-label">posts</span>
               </div>
               <div className="stat">
-                <span className="stat-value">{analytics.linkedin.engagement}</span>
+                <span className="stat-value">{analytics.threads?.engagement || 0}</span>
                 <span className="stat-label">engagement</span>
               </div>
             </div>
-            {!platformStats.linkedin?.connected && (
-              <div className="platform-warning">Not connected</div>
+            {!platformStats.threads?.connected && (
+              <div className="platform-warning">Not connected - Click to connect</div>
             )}
           </div>
           
@@ -467,8 +474,8 @@ function Dashboard() {
           >
             <option value="all">All Platforms</option>
             <option value="facebook">Facebook</option>
-            <option value="instagram">Instagram</option>
-            <option value="linkedin">LinkedIn</option>
+            <option value="threads">Threads</option>
+
           </select>
           
           <select 
@@ -514,7 +521,7 @@ function Dashboard() {
             <div className="no-data-message">
               <p>No performance metrics available yet</p>
               {!hasAnyConnectedPlatforms() && (
-                <button onClick={() => window.location.hash = '#settings'} className="connect-button">
+                <button onClick={() => navigateToSettings?.()} className="connect-button">
                   Connect Accounts
                 </button>
               )}
@@ -557,7 +564,7 @@ function Dashboard() {
             <div className="no-data-message">
               <p>No top performing posts available yet</p>
               {!hasAnyConnectedPlatforms() && (
-                <button onClick={() => window.location.hash = '#content-studio'} className="create-button">
+                <button onClick={() => navigateToSettings?.('content-studio')} className="create-button">
                   Create Your First Post
                 </button>
               )}
@@ -618,7 +625,7 @@ function Dashboard() {
         ) : (
           <div className="no-schedule">
             <p>No posts scheduled for today</p>
-            <button onClick={() => window.location.hash = '#scheduler'} className="action-button">
+            <button onClick={() => navigateToSettings?.('scheduler')} className="action-button">
               Schedule a Post
             </button>
           </div>

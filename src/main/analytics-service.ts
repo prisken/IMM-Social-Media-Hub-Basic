@@ -48,7 +48,7 @@ export class AnalyticsService {
   async updateDailyTrends(): Promise<void> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const platforms = ['facebook', 'instagram', 'linkedin'];
+      const platforms = ['facebook', 'threads'];
 
       for (const platform of platforms) {
         // Check if we have an active account for this platform

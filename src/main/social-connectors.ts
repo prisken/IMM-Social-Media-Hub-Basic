@@ -5,7 +5,7 @@ import * as path from 'path';
 
 export interface SocialMediaAccount {
   id: string;
-  platform: 'facebook' | 'instagram' | 'linkedin';
+  platform: 'facebook' | 'instagram' | 'linkedin' | 'threads';
   accountName: string;
   accessToken: string;
   refreshToken?: string;
@@ -13,6 +13,7 @@ export interface SocialMediaAccount {
   pageId?: string; // For Facebook pages
   businessAccountId?: string; // For Instagram business accounts
   organizationId?: string; // For LinkedIn organizations
+  threadsAccountId?: string; // For Threads accounts
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -708,6 +709,222 @@ export class LinkedInConnector extends SocialMediaConnector {
   }
 }
 
+export class ThreadsConnector extends SocialMediaConnector {
+  private apiVersion = 'v23.0';
+  private threadsAccountId: string;
+
+  constructor(accessToken: string, accountId: string, threadsAccountId: string) {
+    super(accessToken, accountId, 'threads');
+    this.threadsAccountId = threadsAccountId;
+  }
+
+  async authenticate(): Promise<boolean> {
+    try {
+      const response = await this.makeRequest(
+        `https://graph.facebook.com/${this.apiVersion}/me?fields=id,name&access_token=${this.accessToken}`
+      );
+      return !!response.id;
+    } catch (error) {
+      console.error('Threads authentication failed:', error);
+      return false;
+    }
+  }
+
+  async post(content: string, mediaFiles: string[] = []): Promise<PostingResult> {
+    try {
+      // Threads API endpoint for posting
+      const postData: any = {
+        message: content
+      };
+
+      // Handle media uploads if provided
+      if (mediaFiles.length > 0) {
+        const mediaIds = await Promise.all(
+          mediaFiles.map(file => this.uploadMedia(file))
+        );
+        postData.media_ids = mediaIds;
+      }
+
+      const response = await this.makeRequest(
+        `https://graph.facebook.com/${this.apiVersion}/${this.threadsAccountId}/feed`,
+        {
+          method: 'POST',
+          body: postData
+        }
+      );
+
+      return {
+        success: true,
+        postId: response.id,
+        platformPostId: response.id,
+        retryCount: 0,
+        postedAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Threads posting failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        retryCount: 0,
+        postedAt: new Date().toISOString()
+      };
+    }
+  }
+
+  override async uploadMedia(filePath: string): Promise<string> {
+    try {
+      // First, create a media container
+      const containerResponse = await this.makeRequest(
+        `https://graph.facebook.com/${this.apiVersion}/${this.threadsAccountId}/media`,
+        {
+          method: 'POST',
+          body: {
+            media_type: this.getMediaType(filePath),
+            source_url: filePath // For local files, you'd need to upload to a URL first
+          }
+        }
+      );
+
+      // Then publish the media
+      const publishResponse = await this.makeRequest(
+        `https://graph.facebook.com/${this.apiVersion}/${this.threadsAccountId}/media_publish`,
+        {
+          method: 'POST',
+          body: {
+            creation_id: containerResponse.id
+          }
+        }
+      );
+
+      return publishResponse.id;
+    } catch (error) {
+      throw new Error(`Failed to upload media to Threads: ${error}`);
+    }
+  }
+
+  private getMediaType(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase();
+    if (['.jpg', '.jpeg', '.png', '.gif'].includes(ext)) {
+      return 'IMAGE';
+    } else if (['.mp4', '.mov', '.avi'].includes(ext)) {
+      return 'VIDEO';
+    } else {
+      return 'IMAGE'; // Default to image
+    }
+  }
+
+  async refreshToken(): Promise<string | null> {
+    // Threads tokens are long-lived, similar to Facebook
+    return null;
+  }
+
+  async getAccountInfo(): Promise<any> {
+    try {
+      const response = await this.makeRequest(
+        `https://graph.facebook.com/${this.apiVersion}/${this.threadsAccountId}?fields=id,name,username,followers_count,following_count,media_count&access_token=${this.accessToken}`
+      );
+      return response;
+    } catch (error) {
+      throw new Error(`Failed to get Threads account info: ${error}`);
+    }
+  }
+
+  async getEngagementInteractions(limit: number = 50): Promise<EngagementInteraction[]> {
+    try {
+      const response = await this.makeRequest(
+        `https://graph.facebook.com/${this.apiVersion}/${this.threadsAccountId}/media?fields=comments{id,text,from,created_time},like_count,comment_count&limit=${limit}&access_token=${this.accessToken}`
+      );
+
+      const interactions: EngagementInteraction[] = [];
+      
+      for (const post of response.data || []) {
+        if (post.comments && post.comments.data) {
+          for (const comment of post.comments.data) {
+            const sentiment = this.analyzeBasicSentiment(comment.text);
+            
+            interactions.push({
+              id: comment.id,
+              platform: 'threads',
+              postId: post.id,
+              interactionType: 'comment',
+              interactionId: comment.id,
+              authorName: comment.from?.username || 'Unknown',
+              authorId: comment.from?.id,
+              content: comment.text,
+              sentiment: sentiment.sentiment,
+              sentimentScore: sentiment.score,
+              isProcessed: false,
+              createdAt: comment.created_time,
+              updatedAt: comment.created_time
+            });
+          }
+        }
+      }
+
+      return interactions;
+    } catch (error) {
+      console.error('Failed to fetch Threads engagement interactions:', error);
+      return [];
+    }
+  }
+
+  private analyzeBasicSentiment(text: string): { sentiment: 'positive' | 'negative' | 'neutral', score: number } {
+    const positiveWords = ['love', 'great', 'amazing', 'awesome', 'excellent', 'fantastic', 'wonderful', 'perfect', 'best', 'good', 'nice', 'helpful', 'useful', 'brilliant', 'outstanding', 'impressive', 'incredible', 'superb', 'terrific', 'fabulous', 'marvelous', 'thank', 'thanks', 'appreciate', 'grateful', 'happy', 'excited', 'thrilled', 'satisfied', 'pleased', 'delighted', 'joy', 'wonderful', 'beautiful', 'stunning'];
+    const negativeWords = ['hate', 'terrible', 'awful', 'horrible', 'bad', 'worst', 'disappointing', 'frustrated', 'angry', 'upset', 'sad', 'disappointed', 'annoyed', 'irritated', 'disgusting', 'ridiculous', 'stupid', 'useless', 'waste', 'problem', 'issue', 'broken', 'failed', 'wrong', 'error', 'mistake', 'poor', 'cheap', 'expensive', 'difficult', 'hard', 'complicated', 'confusing', 'disagree', 'dislike'];
+
+    const words = text.toLowerCase().split(/\s+/);
+    let positiveCount = 0;
+    let negativeCount = 0;
+
+    words.forEach(word => {
+      const cleanWord = word.replace(/[^\w]/g, '');
+      if (positiveWords.includes(cleanWord)) {
+        positiveCount++;
+      } else if (negativeWords.includes(cleanWord)) {
+        negativeCount++;
+      }
+    });
+
+    const total = words.length;
+    const positiveScore = positiveCount / total;
+    const negativeScore = negativeCount / total;
+
+    if (positiveScore > negativeScore && positiveScore > 0.1) {
+      return { sentiment: 'positive', score: positiveScore };
+    } else if (negativeScore > positiveScore && negativeScore > 0.1) {
+      return { sentiment: 'negative', score: -negativeScore };
+    } else {
+      return { sentiment: 'neutral', score: 0 };
+    }
+  }
+
+  async replyToInteraction(interactionId: string, content: string): Promise<ReplyResult> {
+    try {
+      const response = await this.makeRequest(
+        `https://graph.facebook.com/${this.apiVersion}/${interactionId}/comments`,
+        {
+          method: 'POST',
+          body: {
+            message: content
+          }
+        }
+      );
+
+      return {
+        success: true,
+        replyId: response.id,
+        sentAt: new Date().toISOString()
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        sentAt: new Date().toISOString()
+      };
+    }
+  }
+}
+
 export class SocialMediaManager {
   private connectors: Map<string, SocialMediaConnector> = new Map();
 
@@ -719,10 +936,11 @@ export class SocialMediaManager {
         connector = new FacebookConnector(account.accessToken, account.id, account.pageId);
         break;
       case 'instagram':
-        connector = new InstagramConnector(account.accessToken, account.id, account.businessAccountId);
-        break;
+        throw new Error('Instagram is not currently supported. Coming soon!');
       case 'linkedin':
-        connector = new LinkedInConnector(account.accessToken, account.id, account.organizationId);
+        throw new Error('LinkedIn is not currently supported. Coming soon!');
+      case 'threads':
+        connector = new ThreadsConnector(account.accessToken, account.id, account.threadsAccountId || '');
         break;
       default:
         throw new Error(`Unsupported platform: ${account.platform}`);

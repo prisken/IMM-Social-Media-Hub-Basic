@@ -58,6 +58,17 @@ function Settings() {
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('brand-voice');
   
+  // Check URL hash for tab parameter on component mount
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('tab=')) {
+      const tabParam = hash.split('tab=')[1];
+      if (['brand-voice', 'ai-model', 'social-media', 'posting-management'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
+  
   // Social Media Accounts state
   const [socialAccounts, setSocialAccounts] = useState<any[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
@@ -72,7 +83,8 @@ function Settings() {
     accountId: '',
     pageId: '',
     businessAccountId: '',
-    organizationId: ''
+    organizationId: '',
+    threadsAccountId: ''
   });
   const [isConnecting, setIsConnecting] = useState(false);
   
@@ -82,7 +94,8 @@ function Settings() {
     postingSchedule: {
       facebook: { enabled: false, times: ['09:00', '18:00'], days: ['monday', 'wednesday', 'friday'] },
       instagram: { enabled: false, times: ['10:00', '19:00'], days: ['tuesday', 'thursday', 'saturday'] },
-      linkedin: { enabled: false, times: ['08:00', '17:00'], days: ['monday', 'wednesday', 'friday'] }
+      linkedin: { enabled: false, times: ['08:00', '17:00'], days: ['monday', 'wednesday', 'friday'] },
+      threads: { enabled: false, times: ['09:30', '18:30'], days: ['monday', 'wednesday', 'friday'] }
     },
     contentRules: {
       maxPostsPerDay: 3,
@@ -181,7 +194,8 @@ function Settings() {
         accountId: '',
         pageId: '',
         businessAccountId: '',
-        organizationId: ''
+        organizationId: '',
+        threadsAccountId: ''
       });
       setShowAddForm(false);
       await loadSocialAccounts();

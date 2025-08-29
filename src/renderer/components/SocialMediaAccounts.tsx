@@ -11,6 +11,7 @@ interface SocialMediaAccount {
   pageId?: string;
   businessAccountId?: string;
   organizationId?: string;
+  threadsAccountId?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -23,6 +24,7 @@ interface AccountFormData {
   pageId: string;
   businessAccountId: string;
   organizationId: string;
+  threadsAccountId: string;
 }
 
 const SocialMediaAccounts: React.FC = () => {
@@ -40,16 +42,18 @@ const SocialMediaAccounts: React.FC = () => {
     accessToken: '',
     pageId: '',
     businessAccountId: '',
-    organizationId: ''
+    organizationId: '',
+    threadsAccountId: ''
   });
 
   const platforms = [
     { value: 'facebook', label: 'Facebook', icon: '📘' },
-    { value: 'instagram', label: 'Instagram', icon: '📸' },
-    { value: 'linkedin', label: 'LinkedIn', icon: '💼' },
-    { value: 'twitter', label: 'Twitter', icon: '🐦' },
-    { value: 'tiktok', label: 'TikTok', icon: '🎵' },
-    { value: 'youtube', label: 'YouTube', icon: '📺' }
+    { value: 'threads', label: 'Threads', icon: '🧵' },
+    { value: 'instagram', label: 'Instagram (Coming Soon)', icon: '📸', disabled: true },
+    { value: 'linkedin', label: 'LinkedIn (Coming Soon)', icon: '💼', disabled: true },
+    { value: 'twitter', label: 'Twitter (Coming Soon)', icon: '🐦', disabled: true },
+    { value: 'tiktok', label: 'TikTok (Coming Soon)', icon: '🎵', disabled: true },
+    { value: 'youtube', label: 'YouTube (Coming Soon)', icon: '📺', disabled: true }
   ];
 
   useEffect(() => {
@@ -89,7 +93,8 @@ const SocialMediaAccounts: React.FC = () => {
       accessToken: '',
       pageId: '',
       businessAccountId: '',
-      organizationId: ''
+      organizationId: '',
+      threadsAccountId: ''
     });
     setEditingAccount(null);
     setShowAddForm(false);
@@ -112,6 +117,7 @@ const SocialMediaAccounts: React.FC = () => {
           pageId: formData.pageId || null,
           businessAccountId: formData.businessAccountId || null,
           organizationId: formData.organizationId || null,
+          threadsAccountId: formData.threadsAccountId || null,
           updatedAt: new Date().toISOString()
         });
         setMessage('Account updated successfully!');
@@ -124,6 +130,7 @@ const SocialMediaAccounts: React.FC = () => {
           pageId: formData.pageId || null,
           businessAccountId: formData.businessAccountId || null,
           organizationId: formData.organizationId || null,
+          threadsAccountId: formData.threadsAccountId || null,
           isActive: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -149,7 +156,8 @@ const SocialMediaAccounts: React.FC = () => {
       accessToken: account.accessToken,
       pageId: account.pageId || '',
       businessAccountId: account.businessAccountId || '',
-      organizationId: account.organizationId || ''
+      organizationId: account.organizationId || '',
+      threadsAccountId: account.threadsAccountId || ''
     });
     setShowAddForm(true);
   };
@@ -231,7 +239,11 @@ const SocialMediaAccounts: React.FC = () => {
                 disabled={!!editingAccount} // Can't change platform when editing
               >
                 {platforms.map(platform => (
-                  <option key={platform.value} value={platform.value}>
+                  <option 
+                    key={platform.value} 
+                    value={platform.value}
+                    disabled={platform.disabled}
+                  >
                     {platform.icon} {platform.label}
                   </option>
                 ))}
@@ -288,6 +300,16 @@ const SocialMediaAccounts: React.FC = () => {
               value={formData.organizationId}
               onChange={(e) => setFormData({...formData, organizationId: e.target.value})}
               placeholder="Enter organization ID (for LinkedIn)"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Threads Account ID</label>
+            <input 
+              type="text"
+              value={formData.threadsAccountId}
+              onChange={(e) => setFormData({...formData, threadsAccountId: e.target.value})}
+              placeholder="Enter Threads account ID"
             />
           </div>
 
@@ -380,28 +402,41 @@ const SocialMediaAccounts: React.FC = () => {
           <div className="help-item">
             <h4>📘 Facebook</h4>
             <ol>
-              <li>Go to <a href="https://developers.facebook.com/" target="_blank" rel="noopener">Facebook Developers</a></li>
-              <li>Create an app and get your access token</li>
-              <li>Find your Page ID in Page Info</li>
+              <li><strong>Go to Facebook Developers:</strong> Visit <a href="https://developers.facebook.com/" target="_blank" rel="noopener">developers.facebook.com</a></li>
+              <li><strong>Create a New App:</strong> Click "Create App" and select "Business" as the app type</li>
+              <li><strong>Add Facebook Login:</strong> In your app dashboard, go to "Add Product" and add "Facebook Login"</li>
+              <li><strong>Configure OAuth Settings:</strong> Set your OAuth redirect URI to: <code>https://localhost:3000/auth/facebook/callback</code></li>
+              <li><strong>Get Access Token:</strong> Go to "Tools" → "Graph API Explorer" and generate a user access token with these permissions:
+                <ul>
+                  <li><code>pages_manage_posts</code> - Post to Facebook Pages</li>
+                  <li><code>pages_read_engagement</code> - Read page insights</li>
+                  <li><code>pages_show_list</code> - Access page information</li>
+                </ul>
+              </li>
+              <li><strong>Find Your Page ID:</strong> Go to your Facebook Page → "About" → "Page Info" → Copy the Page ID</li>
+              <li><strong>Get Business Account ID:</strong> In Business Manager → "Business Settings" → "Business Info" → Copy the Business ID</li>
             </ol>
           </div>
           
           <div className="help-item">
-            <h4>📸 Instagram</h4>
+            <h4>🧵 Threads</h4>
             <ol>
-              <li>Connect Instagram to your Facebook Page</li>
-              <li>Use the same access token as Facebook</li>
-              <li>Find your Business Account ID in Business Manager</li>
+              <li><strong>Connect Instagram to Facebook:</strong> Ensure your Instagram account is connected to your Facebook Page</li>
+              <li><strong>Use Facebook Access Token:</strong> Threads uses the same access token as Facebook (no separate token needed)</li>
+              <li><strong>Find Instagram Business Account ID:</strong> In Business Manager → "Accounts" → "Instagram accounts" → Copy the Instagram Business Account ID</li>
+              <li><strong>Enable Threads Access:</strong> In your Facebook app settings, ensure you have the following permissions:
+                <ul>
+                  <li><code>instagram_basic</code> - Access Instagram account</li>
+                  <li><code>instagram_content_publish</code> - Post to Instagram/Threads</li>
+                  <li><code>pages_manage_posts</code> - Manage Facebook page posts</li>
+                </ul>
+              </li>
+              <li><strong>Verify Threads Account:</strong> Make sure your Instagram account has Threads enabled (download the Threads app and link it to your Instagram)</li>
+              <li><strong>Test Connection:</strong> Use the "Test Connection" button above to verify your credentials work</li>
             </ol>
-          </div>
-          
-          <div className="help-item">
-            <h4>💼 LinkedIn</h4>
-            <ol>
-              <li>Go to <a href="https://www.linkedin.com/developers/" target="_blank" rel="noopener">LinkedIn Developers</a></li>
-              <li>Create an app and get your access token</li>
-              <li>Find your Organization ID in your company page</li>
-            </ol>
+            <div className="note">
+              <p><strong>Note:</strong> Threads is currently in beta and requires an Instagram Business account connected to a Facebook Page. The same access token used for Facebook will work for Threads posting.</p>
+            </div>
           </div>
         </div>
       </div>

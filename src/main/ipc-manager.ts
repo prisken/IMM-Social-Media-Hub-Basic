@@ -316,11 +316,12 @@ export class IPCManager {
           facebook: { reach: 0, posts: 0, engagement: 0 },
           instagram: { reach: 0, posts: 0, engagement: 0 },
           linkedin: { reach: 0, posts: 0, engagement: 0 },
+          threads: { reach: 0, posts: 0, engagement: 0 },
           total: { reach: 0, posts: 0, engagement: 0 }
         };
         
         // Get analytics metrics for each platform
-        const platforms = ['facebook', 'instagram', 'linkedin'];
+        const platforms = ['facebook', 'threads'];
         
         for (const platform of platforms) {
           const metrics = await this.database.getAnalyticsMetrics(undefined, platform);
@@ -334,10 +335,10 @@ export class IPCManager {
           }
         }
         
-        // Calculate totals
-        analyticsData.total.reach = analyticsData.facebook.reach + analyticsData.instagram.reach + analyticsData.linkedin.reach;
-        analyticsData.total.posts = analyticsData.facebook.posts + analyticsData.instagram.posts + analyticsData.linkedin.posts;
-        analyticsData.total.engagement = analyticsData.facebook.engagement + analyticsData.instagram.engagement + analyticsData.linkedin.engagement;
+        // Calculate totals (only active platforms)
+        analyticsData.total.reach = analyticsData.facebook.reach + analyticsData.threads.reach;
+        analyticsData.total.posts = analyticsData.facebook.posts + analyticsData.threads.posts;
+        analyticsData.total.engagement = analyticsData.facebook.engagement + analyticsData.threads.engagement;
         
         return analyticsData;
       } catch (error) {
@@ -346,6 +347,7 @@ export class IPCManager {
           facebook: { reach: 0, posts: 0, engagement: 0 },
           instagram: { reach: 0, posts: 0, engagement: 0 },
           linkedin: { reach: 0, posts: 0, engagement: 0 },
+          threads: { reach: 0, posts: 0, engagement: 0 },
           total: { reach: 0, posts: 0, engagement: 0 }
         };
       }

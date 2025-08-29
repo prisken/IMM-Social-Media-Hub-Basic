@@ -24,17 +24,19 @@ interface RouterProps {
   currentView: View;
   onPostDragStart?: (post: any) => void;
   onPostSelect?: (post: any) => void;
+  navigateToSettings?: (tab?: string) => void;
 }
 
 export const Router: React.FC<RouterProps> = ({ 
   currentView, 
   onPostDragStart, 
-  onPostSelect 
+  onPostSelect,
+  navigateToSettings
 }) => {
   const renderComponent = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard navigateToSettings={navigateToSettings} />;
       case 'media':
         return <MediaLibrary />;
       case 'brand-voice':
@@ -57,7 +59,7 @@ export const Router: React.FC<RouterProps> = ({
       case 'settings':
         return <Settings />;
       default:
-        return <Dashboard />;
+        return <Dashboard navigateToSettings={navigateToSettings} />;
     }
   };
 
