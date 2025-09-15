@@ -30,8 +30,12 @@ export class DatabaseService {
   }
 
   private async query(sql: string, params: any[] = []): Promise<any[]> {
+    if (!this.organizationId) {
+      throw new Error('Organization not set')
+    }
+    
     if (typeof window !== 'undefined' && window.electronAPI) {
-      return await window.electronAPI.db.query(sql, params)
+      return await window.electronAPI.orgDb.query(this.organizationId, sql, params)
     } else {
       // Fallback for development (browser environment)
       console.warn('Running in browser mode - database operations not available')
@@ -40,8 +44,12 @@ export class DatabaseService {
   }
 
   private async execute(sql: string, params: any[] = []): Promise<any> {
+    if (!this.organizationId) {
+      throw new Error('Organization not set')
+    }
+    
     if (typeof window !== 'undefined' && window.electronAPI) {
-      return await window.electronAPI.db.execute(sql, params)
+      return await window.electronAPI.orgDb.execute(this.organizationId, sql, params)
     } else {
       // Fallback for development (browser environment)
       console.warn('Running in browser mode - database operations not available')
@@ -49,133 +57,7 @@ export class DatabaseService {
     }
   }
 
-  private async transaction(operations: Array<{ sql: string; params?: any[] }>): Promise<any[]> {
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      return await window.electronAPI.db.transaction(operations)
-    } else {
-      // Fallback for development (browser environment)
-      console.warn('Running in browser mode - database operations not available')
-      return operations.map(() => ({ changes: 1 }))
-    }
-  }
 
-  // Organization operations
-  async createOrganization(organization: Omit<Organization, 'id' | 'createdAt' | 'updatedAt'>): Promise<Organization> {
-    const id = this.generateId()
-    const now = new Date().toISOString()
-    
-    await this.execute(
-      'INSERT INTO organizations (id, name, description, website, logo, settings, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, organization.name, organization.description || null, organization.website || null, organization.logo || null, JSON.stringify(organization.settings), now, now]
-    )
-    
-    return {
-      id,
-      ...organization,
-      createdAt: now,
-      updatedAt: now
-    }
-  }
-
-  async getOrganization(id: string): Promise<Organization | null> {
-    const rows = await this.query('SELECT * FROM organizations WHERE id = ?', [id])
-    if (rows.length === 0) return null
-    
-    const row = rows[0]
-    return {
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      website: row.website,
-      logo: row.logo,
-      settings: row.settings ? JSON.parse(row.settings) : {},
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    }
-  }
-
-  async getAllOrganizations(): Promise<Organization[]> {
-    const rows = await this.query('SELECT * FROM organizations ORDER BY name')
-    return rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      website: row.website,
-      logo: row.logo,
-      settings: row.settings ? JSON.parse(row.settings) : {},
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    }))
-  }
-
-  async updateOrganization(id: string, updates: Partial<Organization>): Promise<Organization | null> {
-    const existing = await this.getOrganization(id)
-    if (!existing) return null
-    
-    const updated = { ...existing, ...updates }
-    await this.execute(
-      'UPDATE organizations SET name = ?, description = ?, website = ?, logo = ?, settings = ?, updated_at = ? WHERE id = ?',
-      [updated.name, updated.description || null, updated.website || null, updated.logo || null, JSON.stringify(updated.settings), new Date().toISOString(), id]
-    )
-    
-    return updated
-  }
-
-  // User operations
-  async createUser(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    const id = this.generateId()
-    const now = new Date().toISOString()
-    
-    await this.execute(
-      'INSERT INTO users (id, email, name, organization_id, role, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, user.email, user.name, user.organizationId, user.role, 'hashed_password', now]
-    )
-    
-    return {
-      id,
-      ...user,
-      createdAt: now
-    }
-  }
-
-  async getUserByEmail(email: string): Promise<(User & { passwordHash: string }) | null> {
-    const rows = await this.query('SELECT * FROM users WHERE email = ?', [email])
-    if (rows.length === 0) return null
-    
-    const row = rows[0]
-    return {
-      id: row.id,
-      email: row.email,
-      name: row.name,
-      organizationId: row.organization_id,
-      role: row.role,
-      createdAt: row.created_at,
-      lastLoginAt: row.last_login_at,
-      passwordHash: row.password_hash
-    }
-  }
-
-  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
-    const existing = await this.query('SELECT * FROM users WHERE id = ?', [id])
-    if (existing.length === 0) return null
-    
-    const user = existing[0]
-    const updated = { ...user, ...updates }
-    await this.execute(
-      'UPDATE users SET name = ?, role = ?, last_login_at = ? WHERE id = ?',
-      [updated.name, updated.role, updated.lastLoginAt || null, id]
-    )
-    
-    return {
-      id: user.id,
-      email: user.email,
-      name: updated.name,
-      organizationId: user.organization_id,
-      role: updated.role,
-      createdAt: user.created_at,
-      lastLoginAt: updated.lastLoginAt
-    }
-  }
 
   // Category operations
   async createCategory(category: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>): Promise<Category> {
@@ -183,8 +65,8 @@ export class DatabaseService {
     const now = new Date().toISOString()
     
     await this.execute(
-      'INSERT INTO categories (id, organization_id, name, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, category.organizationId, category.name, category.color, category.description || null, now, now]
+      'INSERT INTO categories (id, name, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, category.name, category.color, category.description || null, now, now]
     )
     
     return {
@@ -195,32 +77,22 @@ export class DatabaseService {
     }
   }
 
-  async getCategories(organizationId?: string): Promise<Category[]> {
-    const orgId = organizationId || this.organizationId
-    if (!orgId) {
-      console.error('DatabaseService.getCategories: Organization not set. organizationId param:', organizationId, 'this.organizationId:', this.organizationId)
+  async getCategories(): Promise<Category[]> {
+    if (!this.organizationId) {
       throw new Error('Organization not set')
     }
     
-    console.log('DatabaseService.getCategories: Querying categories for organization:', orgId)
-    const rows = await this.query('SELECT * FROM categories WHERE organization_id = ? ORDER BY name', [orgId])
-    console.log('DatabaseService.getCategories: Raw rows from database:', rows)
+    const rows = await this.query('SELECT * FROM categories ORDER BY name')
     
-    const mappedRows = rows.map(row => {
-      console.log('DatabaseService.getCategories: Mapping row:', row)
-      return {
-        id: row.id,
-        organizationId: row.organization_id,
-        name: row.name,
-        color: row.color,
-        description: row.description,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      }
-    })
-    
-    console.log('DatabaseService.getCategories: Mapped rows:', mappedRows)
-    return mappedRows
+    return rows.map(row => ({
+      id: row.id,
+      organizationId: this.organizationId!,
+      name: row.name,
+      color: row.color,
+      description: row.description,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }))
   }
 
   async updateCategory(id: string, updates: Partial<Category>): Promise<Category | null> {
@@ -236,7 +108,7 @@ export class DatabaseService {
     
     return {
       id: category.id,
-      organizationId: category.organization_id,
+      organizationId: this.organizationId!,
       name: updated.name,
       color: updated.color,
       description: updated.description,
@@ -314,14 +186,17 @@ export class DatabaseService {
     const id = this.generateId()
     const now = new Date().toISOString()
     
+    // Ensure status has a default value
+    const status = post.status || 'draft'
+    
     await this.execute(
-      `INSERT INTO posts (id, organization_id, category_id, topic_id, title, content, hashtags, platform, type, status, scheduled_at, published_at, metadata, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO posts (id, category_id, topic_id, title, content, hashtags, platform, type, status, scheduled_at, published_at, metadata, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, post.organizationId, post.categoryId, post.topicId, post.title, post.content,
+        id, post.categoryId, post.topicId, post.title, post.content,
         JSON.stringify(post.hashtags), post.platform, post.type,
-        post.status, post.scheduledAt || null, post.publishedAt || null,
-        JSON.stringify(post.metadata), now, now
+        status, post.scheduledAt || null, post.publishedAt || null,
+        JSON.stringify(post.metadata || {}), now, now
       ]
     )
     
@@ -340,21 +215,19 @@ export class DatabaseService {
     return {
       id,
       ...post,
+      organizationId: this.organizationId!,
       createdAt: now,
       updatedAt: now
     }
   }
 
-  async getPosts(filters: any = {}, organizationId?: string): Promise<Post[]> {
-    const orgId = organizationId || this.organizationId
-    if (!orgId) {
-      console.error('DatabaseService.getPosts: Organization not set. organizationId param:', organizationId, 'this.organizationId:', this.organizationId)
+  async getPosts(filters: any = {}): Promise<Post[]> {
+    if (!this.organizationId) {
       throw new Error('Organization not set')
     }
     
-    console.log('DatabaseService.getPosts: Querying posts for organization:', orgId)
-    let sql = 'SELECT * FROM posts WHERE organization_id = ?'
-    const params: any[] = [orgId]
+    let sql = 'SELECT * FROM posts WHERE 1=1'
+    const params: any[] = []
     
     if (filters.categoryId) {
       sql += ' AND category_id = ?'
@@ -374,11 +247,8 @@ export class DatabaseService {
     sql += ' ORDER BY created_at DESC'
     
     const rows = await this.query(sql, params)
-    console.log('DatabaseService.getPosts: Raw rows from database:', rows)
     
-    const mappedRows = await Promise.all(rows.map(async (row) => {
-      console.log('DatabaseService.getPosts: Mapping row:', row)
-      
+    return await Promise.all(rows.map(async (row) => {
       // Get media relationships for this post
       const mediaRelations = await this.query(
         'SELECT * FROM post_media WHERE post_id = ? ORDER BY order_index',
@@ -395,7 +265,7 @@ export class DatabaseService {
       
       return {
         id: row.id,
-        organizationId: row.organization_id,
+        organizationId: this.organizationId!,
         categoryId: row.category_id,
         topicId: row.topic_id,
         title: row.title,
@@ -412,9 +282,6 @@ export class DatabaseService {
         updatedAt: row.updated_at
       }
     }))
-    
-    console.log('DatabaseService.getPosts: Mapped rows:', mappedRows)
-    return mappedRows
   }
 
   async getPost(id: string): Promise<Post | null> {
@@ -439,7 +306,7 @@ export class DatabaseService {
     
     return {
       id: row.id,
-      organizationId: row.organization_id,
+      organizationId: this.organizationId!,
       categoryId: row.category_id,
       topicId: row.topic_id,
       title: row.title,
@@ -503,10 +370,10 @@ export class DatabaseService {
     const now = new Date().toISOString()
     
     await this.execute(
-      `INSERT INTO media_files (id, organization_id, filename, original_name, mime_type, size, width, height, duration, path, thumbnail_path, metadata, created_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO media_files (id, filename, original_name, mime_type, size, width, height, duration, path, thumbnail_path, metadata, created_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, mediaFile.organizationId, mediaFile.filename, mediaFile.originalName, mediaFile.mimeType,
+        id, mediaFile.filename, mediaFile.originalName, mediaFile.mimeType,
         mediaFile.size, mediaFile.width || null, mediaFile.height || null, mediaFile.duration || null,
         mediaFile.path, mediaFile.thumbnailPath || null, JSON.stringify(mediaFile.metadata), now
       ]
@@ -515,6 +382,7 @@ export class DatabaseService {
     return {
       id,
       ...mediaFile,
+      organizationId: this.organizationId!,
       createdAt: now
     }
   }
@@ -522,11 +390,11 @@ export class DatabaseService {
   async getMediaFiles(): Promise<MediaFile[]> {
     if (!this.organizationId) throw new Error('Organization not set')
     
-    const rows = await this.query('SELECT * FROM media_files WHERE organization_id = ? ORDER BY created_at DESC', [this.organizationId])
+    const rows = await this.query('SELECT * FROM media_files ORDER BY created_at DESC')
     
     return rows.map(row => ({
       id: row.id,
-      organizationId: row.organization_id,
+      organizationId: this.organizationId!,
       filename: row.filename,
       originalName: row.original_name,
       mimeType: row.mime_type,
@@ -552,13 +420,14 @@ export class DatabaseService {
     const now = new Date().toISOString()
     
     await this.execute(
-      'INSERT INTO calendar_events (id, post_id, organization_id, scheduled_at, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, event.postId, event.organizationId, event.scheduledAt, event.status, now]
+      'INSERT INTO calendar_events (id, post_id, scheduled_at, status, created_at) VALUES (?, ?, ?, ?, ?)',
+      [id, event.postId, event.scheduledAt, event.status, now]
     )
     
     return {
       id,
       ...event,
+      organizationId: this.organizationId!,
       createdAt: now
     }
   }
@@ -566,8 +435,8 @@ export class DatabaseService {
   async getCalendarEvents(startDate?: string, endDate?: string): Promise<CalendarEvent[]> {
     if (!this.organizationId) throw new Error('Organization not set')
     
-    let sql = 'SELECT * FROM calendar_events WHERE organization_id = ?'
-    const params: any[] = [this.organizationId]
+    let sql = 'SELECT * FROM calendar_events WHERE 1=1'
+    const params: any[] = []
     
     if (startDate && endDate) {
       sql += ' AND scheduled_at BETWEEN ? AND ?'
@@ -581,7 +450,7 @@ export class DatabaseService {
     return rows.map(row => ({
       id: row.id,
       postId: row.post_id,
-      organizationId: row.organization_id,
+      organizationId: this.organizationId!,
       scheduledAt: row.scheduled_at,
       status: row.status,
       createdAt: row.created_at
@@ -602,7 +471,7 @@ export class DatabaseService {
     return {
       id: event.id,
       postId: event.post_id,
-      organizationId: event.organization_id,
+      organizationId: this.organizationId!,
       scheduledAt: updated.scheduledAt,
       status: updated.status,
       createdAt: event.created_at
@@ -620,10 +489,10 @@ export class DatabaseService {
     const now = new Date().toISOString()
     
     await this.execute(
-      `INSERT INTO post_templates (id, organization_id, name, content, media_template, hashtags, platform, type, is_default, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO post_templates (id, name, content, media_template, hashtags, platform, type, is_default, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, template.organizationId, template.name, template.content,
+        id, template.name, template.content,
         template.mediaTemplate ? JSON.stringify(template.mediaTemplate) : null,
         template.hashtags ? JSON.stringify(template.hashtags) : null,
         template.platform, template.type, template.isDefault, now, now
@@ -633,20 +502,20 @@ export class DatabaseService {
     return {
       id,
       ...template,
+      organizationId: this.organizationId!,
       createdAt: now,
       updatedAt: now
     }
   }
 
-  async getPostTemplates(organizationId?: string): Promise<PostTemplate[]> {
-    const orgId = organizationId || this.organizationId
-    if (!orgId) throw new Error('Organization not set')
+  async getPostTemplates(): Promise<PostTemplate[]> {
+    if (!this.organizationId) throw new Error('Organization not set')
     
-    const rows = await this.query('SELECT * FROM post_templates WHERE organization_id = ? ORDER BY name', [orgId])
+    const rows = await this.query('SELECT * FROM post_templates ORDER BY name')
     
     return rows.map(row => ({
       id: row.id,
-      organizationId: row.organization_id,
+      organizationId: this.organizationId!,
       name: row.name,
       content: row.content,
       mediaTemplate: row.media_template ? JSON.parse(row.media_template) : undefined,
@@ -666,7 +535,7 @@ export class DatabaseService {
     const row = rows[0]
     return {
       id: row.id,
-      organizationId: row.organization_id,
+      organizationId: this.organizationId!,
       name: row.name,
       content: row.content,
       mediaTemplate: row.media_template ? JSON.parse(row.media_template) : undefined,

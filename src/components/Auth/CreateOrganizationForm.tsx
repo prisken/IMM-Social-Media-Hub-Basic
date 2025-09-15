@@ -1,41 +1,34 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from './AuthProvider'
-import { Building2, User, Mail, Lock, Eye, EyeOff, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader2, Building2 } from 'lucide-react'
 
-export function CreateOrganizationForm() {
-  const [formData, setFormData] = useState({
-    organizationName: '',
-    userName: '',
-    userEmail: '',
-    userPassword: '',
-    confirmPassword: ''
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+interface CreateOrganizationFormProps {
+  onCreateSuccess: () => void
+}
+
+export function CreateOrganizationForm({ onCreateSuccess }: CreateOrganizationFormProps) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { createOrganization } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (formData.userPassword !== formData.confirmPassword) {
-      alert('Passwords do not match')
-      return
-    }
-
-    if (!formData.organizationName || !formData.userName || !formData.userEmail || !formData.userPassword) {
+    if (!name.trim()) {
       return
     }
 
     setIsLoading(true)
     try {
-      await createOrganization({
-        name: formData.organizationName,
-        userEmail: formData.userEmail,
-        userName: formData.userName,
-        userPassword: formData.userPassword
-      })
+      await createOrganization(name.trim(), description.trim() || undefined)
+      onCreateSuccess()
     } catch (error) {
       console.error('Organization creation failed:', error)
     } finally {
@@ -43,153 +36,74 @@ export function CreateOrganizationForm() {
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
   return (
-    <motion.form
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.1 }}
-      onSubmit={handleSubmit}
-      className="space-y-4"
-    >
-      {/* Organization Name */}
-      <div className="space-y-2">
-        <label htmlFor="organizationName" className="text-sm font-medium text-foreground">
-          Organization Name
-        </label>
-        <div className="relative">
-          <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            id="organizationName"
-            type="text"
-            value={formData.organizationName}
-            onChange={(e) => handleInputChange('organizationName', e.target.value)}
-            placeholder="Enter organization name"
-            className="input pl-10"
-            required
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-
-      {/* User Name */}
-      <div className="space-y-2">
-        <label htmlFor="userName" className="text-sm font-medium text-foreground">
-          Your Name
-        </label>
-        <div className="relative">
-          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            id="userName"
-            type="text"
-            value={formData.userName}
-            onChange={(e) => handleInputChange('userName', e.target.value)}
-            placeholder="Enter your full name"
-            className="input pl-10"
-            required
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-
-      {/* User Email */}
-      <div className="space-y-2">
-        <label htmlFor="userEmail" className="text-sm font-medium text-foreground">
-          Email Address
-        </label>
-        <div className="relative">
-          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            id="userEmail"
-            type="email"
-            value={formData.userEmail}
-            onChange={(e) => handleInputChange('userEmail', e.target.value)}
-            placeholder="Enter your email"
-            className="input pl-10"
-            required
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-
-      {/* Password */}
-      <div className="space-y-2">
-        <label htmlFor="userPassword" className="text-sm font-medium text-foreground">
-          Password
-        </label>
-        <div className="relative">
-          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            id="userPassword"
-            type={showPassword ? 'text' : 'password'}
-            value={formData.userPassword}
-            onChange={(e) => handleInputChange('userPassword', e.target.value)}
-            placeholder="Create a password"
-            className="input pl-10 pr-10"
-            required
-            disabled={isLoading}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            disabled={isLoading}
-          >
-            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Confirm Password */}
-      <div className="space-y-2">
-        <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
-          Confirm Password
-        </label>
-        <div className="relative">
-          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            id="confirmPassword"
-            type={showConfirmPassword ? 'text' : 'password'}
-            value={formData.confirmPassword}
-            onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-            placeholder="Confirm your password"
-            className="input pl-10 pr-10"
-            required
-            disabled={isLoading}
-          />
-          <button
-            type="button"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            disabled={isLoading}
-          >
-            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      <motion.button
-        type="submit"
-        disabled={isLoading || !formData.organizationName || !formData.userName || !formData.userEmail || !formData.userPassword || !formData.confirmPassword}
-        className="btn btn-primary w-full"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        {isLoading ? (
-          <div className="flex items-center gap-2">
-            <div className="spinner" />
-            Creating...
+    <Card>
+      <CardHeader>
+        <CardTitle>Create Organization</CardTitle>
+        <CardDescription>
+          Set up your first organization to get started with social media management
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Organization Name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Enter organization name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={isLoading}
+              required
+            />
           </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Create Organization
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (Optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Describe your organization..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={isLoading}
+              rows={3}
+            />
           </div>
-        )}
-      </motion.button>
-    </motion.form>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating Organization...
+              </>
+            ) : (
+              <>
+                <Building2 className="w-4 h-4 mr-2" />
+                Create Organization
+              </>
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+          <div className="flex items-start space-x-3">
+            <Building2 className="w-5 h-5 text-primary mt-0.5" />
+            <div>
+              <h4 className="font-medium text-sm">What happens next?</h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Once you create your organization, you'll have access to:
+              </p>
+              <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+                <li>• Post creation and scheduling</li>
+                <li>• Media management</li>
+                <li>• Content calendar</li>
+                <li>• Analytics and insights</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

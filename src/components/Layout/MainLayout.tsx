@@ -12,14 +12,11 @@ export function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [currentView, setCurrentView] = useState<'posts' | 'calendar'>('posts')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
-  const { organization } = useAuth()
-
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-screen bg-background flex flex-col overflow-hidden">
         {/* Header */}
         <Header 
-          organization={organization}
           currentView={currentView}
           onViewChange={setCurrentView}
         />

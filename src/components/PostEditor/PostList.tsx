@@ -10,9 +10,10 @@ interface PostListProps {
   searchQuery: string
   selectedPostId: string | null
   onPostSelect: (postId: string | null) => void
+  refreshTrigger?: number
 }
 
-export function PostList({ viewMode, searchQuery, selectedPostId, onPostSelect }: PostListProps) {
+export function PostList({ viewMode, searchQuery, selectedPostId, onPostSelect, refreshTrigger }: PostListProps) {
   const { organization } = useAuth()
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,6 +24,12 @@ export function PostList({ viewMode, searchQuery, selectedPostId, onPostSelect }
       loadPosts()
     }
   }, [organization])
+
+  useEffect(() => {
+    if (refreshTrigger && organization) {
+      loadPosts()
+    }
+  }, [refreshTrigger, organization])
 
   useEffect(() => {
     filterPosts()

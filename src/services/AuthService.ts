@@ -1,16 +1,41 @@
-import { databaseService } from './database/DatabaseService'
 import { Organization, User, AuthState } from '@/types'
 
+export interface AppUser {
+  id: string
+  name: string
+  createdAt: string
+  lastLoginAt?: string
+}
+
+export interface AppOrganization {
+  id: string
+  name: string
+  description?: string
+  settings: any
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AppAuthState {
+  isAuthenticated: boolean
+  user: AppUser | null
+  currentOrganization: AppOrganization | null
+  userOrganizations: AppOrganization[]
+  loading: boolean
+  error: string | null
+}
+
 export class AuthService {
-  private currentAuthState: AuthState = {
+  private currentAuthState: AppAuthState = {
     isAuthenticated: false,
     user: null,
-    organization: null,
+    currentOrganization: null,
+    userOrganizations: [],
     loading: false,
     error: null
   }
 
-  private listeners: Array<(state: AuthState) => void> = []
+  private listeners: Array<(state: AppAuthState) => void> = []
 
   constructor() {
     this.initializeAuth()
@@ -24,47 +49,21 @@ export class AuthService {
         try {
           const session = JSON.parse(savedSession)
           
-          // Validate that session has proper structure and email format
-          if (!session || typeof session !== 'object') {
-            console.log('🚨 Invalid session structure detected')
-            localStorage.clear() // Clear all localStorage
-            return
+          if (session && session.userId && session.organizationId) {
+            console.log('✅ Session found, attempting to validate')
+            await this.validateSession(session)
+          } else {
+            console.log('🚨 Invalid session data')
+            localStorage.removeItem('auth_session')
           }
-          
-          if (!session.userId || !session.organizationId) {
-            console.log('🚨 Incomplete session data detected')
-            localStorage.clear() // Clear all localStorage
-            return
-          }
-          
-          // Validate that userId is an email (not an organization ID)
-          if (!session.userId.includes('@') || typeof session.userId !== 'string') {
-            console.log('🚨 Corrupted session detected - userId is not an email:', session.userId)
-            console.log('🧹 Clearing ALL localStorage to prevent corruption')
-            localStorage.clear() // Clear all localStorage
-            return
-          }
-          
-          // Validate that organizationId is a string (not a number)
-          if (typeof session.organizationId !== 'string') {
-            console.log('🚨 Corrupted session detected - organizationId is not a string:', session.organizationId)
-            console.log('🧹 Clearing ALL localStorage to prevent corruption')
-            localStorage.clear() // Clear all localStorage
-            return
-          }
-          
-          console.log('✅ Session validation passed, attempting to validate session')
-          await this.validateSession(session)
         } catch (parseError) {
           console.log('🚨 Failed to parse session data:', parseError)
-          localStorage.clear() // Clear all localStorage
-          return
+          localStorage.removeItem('auth_session')
         }
       }
     } catch (error) {
       console.error('Failed to initialize auth:', error)
-      // Clear corrupted session on error
-      localStorage.clear() // Clear all localStorage
+      localStorage.removeItem('auth_session')
       this.updateAuthState({ error: 'Failed to initialize authentication' })
     }
   }
@@ -74,23 +73,36 @@ export class AuthService {
       console.log('🔍 Validating session:', session)
       this.updateAuthState({ loading: true })
       
-      // Initialize database for the organization
-      await databaseService.initializeDatabase(session.organizationId)
-      
-      // Get user and organization data
-      console.log('🔍 Getting user by email:', session.userId)
-      const user = await databaseService.getUserByEmail(session.userId)
-      console.log('🔍 User found:', user)
-      const organization = await databaseService.getOrganization(session.organizationId)
-      
-      if (user && organization) {
-        this.updateAuthState({
-          isAuthenticated: true,
-          user,
-          organization,
-          loading: false,
-          error: null
-        })
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        // Get user organizations
+        const organizations = await window.electronAPI.auth.getUserOrganizations(session.userId)
+        
+        // Find the current organization
+        const currentOrg = organizations.find(org => org.id === session.organizationId)
+        
+        if (organizations.length > 0 && currentOrg) {
+          // Create organization database if it doesn't exist
+          await window.electronAPI.createOrganizationDb(session.organizationId)
+          
+          // Get user info (we'll get it from the organizations query)
+          const userInfo = {
+            id: session.userId,
+            name: 'User', // We'll need to get this from the database
+            createdAt: new Date().toISOString(),
+            lastLoginAt: new Date().toISOString()
+          }
+          
+          this.updateAuthState({
+            isAuthenticated: true,
+            user: userInfo,
+            currentOrganization: currentOrg,
+            userOrganizations: organizations,
+            loading: false,
+            error: null
+          })
+        } else {
+          this.logout()
+        }
       } else {
         this.logout()
       }
@@ -100,62 +112,78 @@ export class AuthService {
     }
   }
 
-  async login(email: string, password: string): Promise<AuthState> {
+  async login(name: string, password: string): Promise<AppAuthState> {
     try {
-      console.log('🔍 Login attempt with email:', email)
+      console.log('🔍 Login attempt with name:', name)
       this.updateAuthState({ loading: true, error: null })
       
-      // Get user by email
-      console.log('🔍 Getting user by email:', email)
-      const user = await databaseService.getUserByEmail(email)
-      console.log('🔍 User found:', user)
-      
-      if (!user) {
-        throw new Error('User not found')
+      if (typeof window === 'undefined' || !window.electronAPI) {
+        throw new Error('Electron API not available')
       }
       
-      // For demo purposes, check password directly
-      // In a real app, you'd compare hashed passwords
-      if (user.passwordHash !== password) {
-        throw new Error('Invalid password')
+      // Authenticate user
+      const user = await window.electronAPI.auth.login(name, password)
+      
+      // Get user's organizations
+      const organizations = await window.electronAPI.auth.getUserOrganizations(user.id)
+      
+      if (organizations.length === 0) {
+        // User has no organizations, they need to create one
+        this.updateAuthState({
+          isAuthenticated: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            createdAt: user.created_at,
+            lastLoginAt: user.last_login_at
+          },
+          currentOrganization: null,
+          userOrganizations: [],
+          loading: false,
+          error: null
+        })
+        
+        // Save session without organization
+        localStorage.setItem('auth_session', JSON.stringify({
+          userId: user.id,
+          organizationId: null
+        }))
+      } else {
+        // User has organizations, use the first one as default
+        const currentOrg = organizations[0]
+        
+        // Create organization database if it doesn't exist
+        await window.electronAPI.createOrganizationDb(currentOrg.id)
+        
+        this.updateAuthState({
+          isAuthenticated: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            createdAt: user.created_at,
+            lastLoginAt: user.last_login_at
+          },
+          currentOrganization: currentOrg,
+          userOrganizations: organizations,
+          loading: false,
+          error: null
+        })
+        
+        // Save session
+        localStorage.setItem('auth_session', JSON.stringify({
+          userId: user.id,
+          organizationId: currentOrg.id
+        }))
       }
       
-      // Initialize database for the user's organization
-      await databaseService.initializeDatabase(user.organizationId)
-      
-      // Get organization data
-      const organization = await databaseService.getOrganization(user.organizationId)
-      
-      if (!organization) {
-        throw new Error('Organization not found')
-      }
-      
-      // Update last login
-      await databaseService.updateUser(user.id, { lastLoginAt: new Date().toISOString() })
-      
-      const authState: AuthState = {
-        isAuthenticated: true,
-        user: { ...user, lastLoginAt: new Date().toISOString() },
-        organization,
-        loading: false,
-        error: null
-      }
-      
-      this.updateAuthState(authState)
-      
-      // Save session
-      localStorage.setItem('auth_session', JSON.stringify({
-        userId: user.email,
-        organizationId: user.organizationId
-      }))
-      
-      return authState
+      return this.currentAuthState
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed'
       this.updateAuthState({
         isAuthenticated: false,
         user: null,
-        organization: null,
+        currentOrganization: null,
+        userOrganizations: [],
         loading: false,
         error: errorMessage
       })
@@ -163,69 +191,46 @@ export class AuthService {
     }
   }
 
-  async createOrganization(organizationData: {
-    name: string
-    userEmail: string
-    userName: string
-    userPassword: string
-  }): Promise<AuthState> {
+  async createUser(name: string, password: string): Promise<AppAuthState> {
     try {
+      console.log('🔍 Creating user:', name)
       this.updateAuthState({ loading: true, error: null })
       
-      // Create organization
-      const organization = await databaseService.createOrganization({
-        name: organizationData.name,
-        settings: {
-          branding: {
-            primaryColor: '#3B82F6',
-            secondaryColor: '#1E40AF'
-          },
-          preferences: {
-            defaultTimezone: 'UTC',
-            autoSave: true,
-            theme: 'system'
-          },
-          storage: {
-            maxStorageGB: 10,
-            currentUsageGB: 0
-          }
-        }
-      })
-      
-      // Initialize database for the new organization
-      await databaseService.initializeDatabase(organization.id)
-      
-      // Create admin user
-      const user = await databaseService.createUser({
-        email: organizationData.userEmail,
-        name: organizationData.userName,
-        organizationId: organization.id,
-        role: 'admin'
-      })
-      
-      const authState: AuthState = {
-        isAuthenticated: true,
-        user,
-        organization,
-        loading: false,
-        error: null
+      if (typeof window === 'undefined' || !window.electronAPI) {
+        throw new Error('Electron API not available')
       }
       
-      this.updateAuthState(authState)
+      // Create user
+      const user = await window.electronAPI.auth.createUser(name, password)
       
-      // Save session
+      this.updateAuthState({
+        isAuthenticated: true,
+        user: {
+          id: user.userId,
+          name: user.name,
+          createdAt: user.createdAt,
+          lastLoginAt: undefined
+        },
+        currentOrganization: null,
+        userOrganizations: [],
+        loading: false,
+        error: null
+      })
+      
+      // Save session without organization (user needs to create one)
       localStorage.setItem('auth_session', JSON.stringify({
-        userId: user.email,
-        organizationId: user.organizationId
+        userId: user.userId,
+        organizationId: null
       }))
       
-      return authState
+      return this.currentAuthState
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create organization'
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create user'
       this.updateAuthState({
         isAuthenticated: false,
         user: null,
-        organization: null,
+        currentOrganization: null,
+        userOrganizations: [],
         loading: false,
         error: errorMessage
       })
@@ -233,53 +238,53 @@ export class AuthService {
     }
   }
 
-  async switchOrganization(organizationId: string): Promise<AuthState> {
+  async createOrganization(name: string, description?: string): Promise<AppAuthState> {
     try {
+      console.log('🔍 Creating organization:', name)
       this.updateAuthState({ loading: true, error: null })
       
       if (!this.currentAuthState.user) {
         throw new Error('No user logged in')
       }
       
-      // Check if user has access to this organization
-      const user = await databaseService.getUserByEmail(this.currentAuthState.user.email)
-      if (!user || user.organizationId !== organizationId) {
-        throw new Error('Access denied to this organization')
+      if (typeof window === 'undefined' || !window.electronAPI) {
+        throw new Error('Electron API not available')
       }
       
-      // Initialize database for the new organization
-      await databaseService.initializeDatabase(organizationId)
+      // Create organization
+      const organization = await window.electronAPI.auth.createOrganization(
+        this.currentAuthState.user.id,
+        name,
+        description
+      )
       
-      // Get organization data
-      const organization = await databaseService.getOrganization(organizationId)
+      // Create organization database
+      await window.electronAPI.createOrganizationDb(organization.organizationId)
       
-      if (!organization) {
-        throw new Error('Organization not found')
-      }
+      // Get updated user organizations
+      const organizations = await window.electronAPI.auth.getUserOrganizations(this.currentAuthState.user.id)
       
-      const authState: AuthState = {
-        isAuthenticated: true,
-        user,
-        organization,
+      const newOrg = organizations.find(org => org.id === organization.organizationId)!
+      
+      this.updateAuthState({
+        ...this.currentAuthState,
+        currentOrganization: newOrg,
+        userOrganizations: organizations,
         loading: false,
         error: null
-      }
-      
-      this.updateAuthState(authState)
+      })
       
       // Update session
       localStorage.setItem('auth_session', JSON.stringify({
-        userId: user.email,
-        organizationId: user.organizationId
+        userId: this.currentAuthState.user.id,
+        organizationId: organization.organizationId
       }))
       
-      return authState
+      return this.currentAuthState
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to switch organization'
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create organization'
       this.updateAuthState({
-        isAuthenticated: false,
-        user: null,
-        organization: null,
+        ...this.currentAuthState,
         loading: false,
         error: errorMessage
       })
@@ -287,30 +292,58 @@ export class AuthService {
     }
   }
 
-  async getUserOrganizations(): Promise<Organization[]> {
+  async switchOrganization(organizationId: string): Promise<AppAuthState> {
     try {
+      console.log('🔍 Switching to organization:', organizationId)
+      this.updateAuthState({ loading: true, error: null })
+      
       if (!this.currentAuthState.user) {
-        return []
+        throw new Error('No user logged in')
       }
       
-      // For now, return only the current organization
-      // In a real multi-tenant system, you'd query all organizations the user has access to
-      if (this.currentAuthState.organization) {
-        return [this.currentAuthState.organization]
+      // Find the organization in user's organizations
+      const organization = this.currentAuthState.userOrganizations.find(org => org.id === organizationId)
+      
+      if (!organization) {
+        throw new Error('Access denied to this organization')
       }
       
-      return []
+      // Create organization database if it doesn't exist
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        await window.electronAPI.createOrganizationDb(organizationId)
+      }
+      
+      this.updateAuthState({
+        ...this.currentAuthState,
+        currentOrganization: organization,
+        loading: false,
+        error: null
+      })
+      
+      // Update session
+      localStorage.setItem('auth_session', JSON.stringify({
+        userId: this.currentAuthState.user.id,
+        organizationId: organizationId
+      }))
+      
+      return this.currentAuthState
     } catch (error) {
-      console.error('Failed to get user organizations:', error)
-      return []
+      const errorMessage = error instanceof Error ? error.message : 'Failed to switch organization'
+      this.updateAuthState({
+        ...this.currentAuthState,
+        loading: false,
+        error: errorMessage
+      })
+      throw error
     }
+  }
+
+  async getUserOrganizations(): Promise<AppOrganization[]> {
+    return this.currentAuthState.userOrganizations
   }
 
   async logout(): Promise<void> {
     try {
-      // Close database connection
-      await databaseService.close()
-      
       // Clear session
       localStorage.removeItem('auth_session')
       
@@ -318,7 +351,8 @@ export class AuthService {
       this.updateAuthState({
         isAuthenticated: false,
         user: null,
-        organization: null,
+        currentOrganization: null,
+        userOrganizations: [],
         loading: false,
         error: null
       })
@@ -327,11 +361,11 @@ export class AuthService {
     }
   }
 
-  getAuthState(): AuthState {
+  getAuthState(): AppAuthState {
     return this.currentAuthState
   }
 
-  subscribe(listener: (state: AuthState) => void): () => void {
+  subscribe(listener: (state: AppAuthState) => void): () => void {
     this.listeners.push(listener)
     
     // Return unsubscribe function
@@ -343,66 +377,78 @@ export class AuthService {
     }
   }
 
-  private updateAuthState(updates: Partial<AuthState>): void {
+  private updateAuthState(updates: Partial<AppAuthState>): void {
     this.currentAuthState = { ...this.currentAuthState, ...updates }
-    
-    // Update ApiService with current organization ID (avoid circular import)
-    if (updates.organization && updates.organization.id) {
-      // Import ApiService dynamically to avoid circular dependency
-      import('./ApiService').then(({ apiService }) => {
-        apiService.setOrganizationId(updates.organization!.id)
-        console.log('AuthService notified ApiService of organization change:', updates.organization!.id)
-      }).catch(error => {
-        console.error('Failed to notify ApiService of organization change:', error)
-      })
-    }
-    
     this.listeners.forEach(listener => listener(this.currentAuthState))
-  }
-
-  async updateUserProfile(updates: Partial<User>): Promise<User | null> {
-    if (!this.currentAuthState.user) return null
-    
-    try {
-      const updatedUser = await databaseService.updateUser(this.currentAuthState.user.id, updates)
-      if (updatedUser) {
-        this.updateAuthState({ user: updatedUser })
-      }
-      return updatedUser
-    } catch (error) {
-      console.error('Failed to update user profile:', error)
-      throw error
-    }
-  }
-
-  async updateOrganizationSettings(updates: Partial<Organization>): Promise<Organization | null> {
-    if (!this.currentAuthState.organization) return null
-    
-    try {
-      const updatedOrganization = await databaseService.updateOrganization(
-        this.currentAuthState.organization.id, 
-        updates
-      )
-      if (updatedOrganization) {
-        this.updateAuthState({ organization: updatedOrganization })
-      }
-      return updatedOrganization
-    } catch (error) {
-      console.error('Failed to update organization settings:', error)
-      throw error
-    }
   }
 
   isAuthenticated(): boolean {
     return this.currentAuthState.isAuthenticated
   }
 
-  getCurrentUser(): User | null {
+  getCurrentUser(): AppUser | null {
     return this.currentAuthState.user
   }
 
-  getCurrentOrganization(): Organization | null {
-    return this.currentAuthState.organization
+  getCurrentOrganization(): AppOrganization | null {
+    return this.currentAuthState.currentOrganization
+  }
+
+  async deleteUser(): Promise<void> {
+    if (!this.currentAuthState.user) {
+      throw new Error('No user logged in')
+    }
+
+    if (typeof window === 'undefined' || !window.electronAPI) {
+      throw new Error('Electron API not available')
+    }
+
+    try {
+      await window.electronAPI.auth.deleteUser(this.currentAuthState.user.id)
+      // Logout after successful deletion
+      await this.logout()
+    } catch (error) {
+      console.error('Failed to delete user:', error)
+      throw error
+    }
+  }
+
+  async deleteOrganization(organizationId: string): Promise<void> {
+    if (!this.currentAuthState.user) {
+      throw new Error('No user logged in')
+    }
+
+    if (typeof window === 'undefined' || !window.electronAPI) {
+      throw new Error('Electron API not available')
+    }
+
+    try {
+      await window.electronAPI.auth.deleteOrganization(organizationId)
+      
+      // Update the user organizations list
+      const updatedOrganizations = this.currentAuthState.userOrganizations.filter(
+        org => org.id !== organizationId
+      )
+      
+      // If we deleted the current organization, switch to another one or logout
+      if (this.currentAuthState.currentOrganization?.id === organizationId) {
+        if (updatedOrganizations.length > 0) {
+          // Switch to the first available organization
+          await this.switchOrganization(updatedOrganizations[0].id)
+        } else {
+          // No organizations left, logout
+          await this.logout()
+        }
+      } else {
+        // Just update the organizations list
+        this.updateAuthState({
+          userOrganizations: updatedOrganizations
+        })
+      }
+    } catch (error) {
+      console.error('Failed to delete organization:', error)
+      throw error
+    }
   }
 }
 

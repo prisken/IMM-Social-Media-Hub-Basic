@@ -13,12 +13,38 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppPath: () => ipcRenderer.invoke('get-app-path'),
   getAssetsPath: () => ipcRenderer.invoke('get-assets-path'),
   
-  // Database operations
-  db: {
-    query: (sql: string, params?: any[]) => ipcRenderer.invoke('db-query', sql, params),
-    execute: (sql: string, params?: any[]) => ipcRenderer.invoke('db-execute', sql, params),
-    transaction: (queries: Array<{ sql: string; params?: any[] }>) => 
-      ipcRenderer.invoke('db-transaction', queries),
+  // Global database operations
+  globalDb: {
+    query: (sql: string, params?: any[]) => ipcRenderer.invoke('global-db-query', sql, params),
+    execute: (sql: string, params?: any[]) => ipcRenderer.invoke('global-db-execute', sql, params),
+  },
+  
+  // Organization database operations
+  orgDb: {
+    query: (organizationId: string, sql: string, params?: any[]) => 
+      ipcRenderer.invoke('org-db-query', organizationId, sql, params),
+    execute: (organizationId: string, sql: string, params?: any[]) => 
+      ipcRenderer.invoke('org-db-execute', organizationId, sql, params),
+  },
+  
+  // Organization management
+  createOrganizationDb: (organizationId: string) => 
+    ipcRenderer.invoke('create-organization-db', organizationId),
+  
+  // Authentication
+  auth: {
+    createUser: (name: string, password: string) => 
+      ipcRenderer.invoke('auth-create-user', name, password),
+    login: (name: string, password: string) => 
+      ipcRenderer.invoke('auth-login', name, password),
+    createOrganization: (userId: string, name: string, description?: string) => 
+      ipcRenderer.invoke('auth-create-organization', userId, name, description),
+    getUserOrganizations: (userId: string) => 
+      ipcRenderer.invoke('auth-get-user-organizations', userId),
+    deleteUser: (userId: string) => 
+      ipcRenderer.invoke('auth-delete-user', userId),
+    deleteOrganization: (organizationId: string) => 
+      ipcRenderer.invoke('auth-delete-organization', organizationId),
   },
   
   // File system operations
@@ -43,10 +69,22 @@ declare global {
       openExternal: (url: string) => Promise<void>
       getAppPath: () => Promise<string>
       getAssetsPath: () => Promise<string>
-      db: {
+      globalDb: {
         query: (sql: string, params?: any[]) => Promise<any[]>
         execute: (sql: string, params?: any[]) => Promise<any>
-        transaction: (queries: Array<{ sql: string; params?: any[] }>) => Promise<any>
+      }
+      orgDb: {
+        query: (organizationId: string, sql: string, params?: any[]) => Promise<any[]>
+        execute: (organizationId: string, sql: string, params?: any[]) => Promise<any>
+      }
+      createOrganizationDb: (organizationId: string) => Promise<any>
+      auth: {
+        createUser: (name: string, password: string) => Promise<any>
+        login: (name: string, password: string) => Promise<any>
+        createOrganization: (userId: string, name: string, description?: string) => Promise<any>
+        getUserOrganizations: (userId: string) => Promise<any[]>
+        deleteUser: (userId: string) => Promise<any>
+        deleteOrganization: (organizationId: string) => Promise<any>
       }
       fs: {
         readFile: (path: string) => Promise<Buffer>

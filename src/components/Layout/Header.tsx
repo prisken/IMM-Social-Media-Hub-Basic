@@ -1,26 +1,25 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/components/Auth/AuthProvider'
-import { Building2, LogOut, Settings, User, ChevronDown, Plus } from 'lucide-react'
-import { Organization } from '@/types'
-import { apiService } from '@/services/ApiService'
+import { Building2, LogOut, Settings, User, ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { AppOrganization } from '@/services/AuthService'
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
+import { SettingsModal } from './SettingsModal'
 
 interface HeaderProps {
-  organization: Organization | null
   currentView: 'posts' | 'calendar'
   onViewChange: (view: 'posts' | 'calendar') => void
 }
 
-export function Header({ organization, currentView, onViewChange }: HeaderProps) {
-  const { logout, user, login } = useAuth()
-  const [organizations, setOrganizations] = useState<Organization[]>([])
+export function Header({ currentView, onViewChange }: HeaderProps) {
+  const { logout, user, currentOrganization, userOrganizations, switchOrganization, createOrganization, deleteOrganization } = useAuth()
   const [showOrgDropdown, setShowOrgDropdown] = useState(false)
   const [newOrgName, setNewOrgName] = useState('')
   const [showNewOrgForm, setShowNewOrgForm] = useState(false)
-
-  useEffect(() => {
-    loadOrganizations()
-  }, [])
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [orgToDelete, setOrgToDelete] = useState<AppOrganization | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,36 +35,14 @@ export function Header({ organization, currentView, onViewChange }: HeaderProps)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showOrgDropdown])
 
-  const loadOrganizations = async () => {
-    try {
-      const orgs = await apiService.getAllOrganizations()
-      setOrganizations(orgs)
-    } catch (error) {
-      console.error('Failed to load organizations:', error)
-    }
-  }
-
   const handleLogout = async () => {
     await logout()
   }
 
   const handleSwitchOrganization = async (orgId: string) => {
     try {
-      // Auto-login with organization-specific credentials
-      const orgCredentials = {
-        '20': { email: 'karma@karmacookie.com', password: 'karma123' }, // Karma Cookie
-        '21': { email: 'persona@personacentric.com', password: 'persona123' }, // Persona Centric
-        '22': { email: 'imm@immlimited.com', password: 'imm123' }, // IMM Limited
-        '23': { email: 'roleplay@roleplay.com', password: 'roleplay123' }, // Roleplay
-        '24': { email: 'foodies@hkfoodies.com', password: 'foodies123' }, // HK Foodies
-        '25': { email: 'drinks@halfdrinks.com', password: 'drinks123' } // 1/2 Drinks
-      }
-      
-      const credentials = orgCredentials[orgId as keyof typeof orgCredentials]
-      if (credentials) {
-        await login(credentials.email, credentials.password)
-        setShowOrgDropdown(false)
-      }
+      await switchOrganization(orgId)
+      setShowOrgDropdown(false)
     } catch (error) {
       console.error('Failed to switch organization:', error)
     }
@@ -76,18 +53,32 @@ export function Header({ organization, currentView, onViewChange }: HeaderProps)
     if (!newOrgName.trim()) return
 
     try {
-      const newOrg = await apiService.createOrganization({
-        name: newOrgName.trim(),
-        description: '',
-        website: '',
-        logo: ''
-      })
-      setOrganizations(prev => [...prev, newOrg])
+      await createOrganization(newOrgName.trim())
       setNewOrgName('')
       setShowNewOrgForm(false)
       setShowOrgDropdown(false)
     } catch (error) {
       console.error('Failed to create organization:', error)
+    }
+  }
+
+  const handleDeleteOrganization = (org: AppOrganization) => {
+    setOrgToDelete(org)
+    setShowDeleteDialog(true)
+    setShowOrgDropdown(false)
+  }
+
+  const confirmDeleteOrganization = async () => {
+    if (!orgToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await deleteOrganization(orgToDelete.id)
+    } catch (error) {
+      console.error('Failed to delete organization:', error)
+    } finally {
+      setIsDeleting(false)
+      setOrgToDelete(null)
     }
   }
 
@@ -105,7 +96,7 @@ export function Header({ organization, currentView, onViewChange }: HeaderProps)
             </div>
             <div className="text-left">
               <h1 className="font-semibold text-foreground">
-                {organization?.name || 'Social Media Manager'}
+                {currentOrganization?.name || 'Social Media Manager'}
               </h1>
               <p className="text-sm text-muted-foreground">
                 {user?.name || 'User'}
@@ -125,18 +116,38 @@ export function Header({ organization, currentView, onViewChange }: HeaderProps)
                 <div className="text-xs font-medium text-muted-foreground px-2 py-1 mb-1">
                   Organizations
                 </div>
-                {organizations.map(org => (
-                  <button
+                {userOrganizations.map(org => (
+                  <div
                     key={org.id}
-                    onClick={() => handleSwitchOrganization(org.id)}
-                    className={`w-full text-left px-2 py-2 rounded-md text-sm transition-colors ${
-                      organization?.id === org.id
+                    className={`flex items-center justify-between group px-2 py-2 rounded-md text-sm transition-colors ${
+                      currentOrganization?.id === org.id
                         ? 'bg-primary text-primary-foreground'
                         : 'hover:bg-muted'
                     }`}
                   >
-                    {org.name}
-                  </button>
+                    <button
+                      onClick={() => handleSwitchOrganization(org.id)}
+                      className="flex-1 text-left"
+                    >
+                      {org.name}
+                    </button>
+                    {userOrganizations.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteOrganization(org)
+                        }}
+                        className={`ml-2 p-1 rounded hover:bg-destructive/20 transition-colors ${
+                          currentOrganization?.id === org.id
+                            ? 'text-primary-foreground hover:text-destructive'
+                            : 'text-muted-foreground hover:text-destructive'
+                        }`}
+                        title="Delete organization"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 ))}
                 
                 <div className="border-t border-border my-2" />
@@ -214,6 +225,7 @@ export function Header({ organization, currentView, onViewChange }: HeaderProps)
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          onClick={() => setShowSettings(true)}
           className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
           title="Settings"
         >
@@ -239,6 +251,24 @@ export function Header({ organization, currentView, onViewChange }: HeaderProps)
           <LogOut className="w-5 h-5" />
         </motion.button>
       </div>
+
+      {/* Delete Organization Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={confirmDeleteOrganization}
+        title="Delete Organization"
+        description={`Are you sure you want to delete "${orgToDelete?.name}"? This will permanently delete all posts, media, and data associated with this organization. This action cannot be undone.`}
+        confirmText="Delete Organization"
+        isLoading={isDeleting}
+        variant="destructive"
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        open={showSettings}
+        onOpenChange={setShowSettings}
+      />
     </header>
   )
 }

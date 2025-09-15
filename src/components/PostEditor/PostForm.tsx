@@ -11,9 +11,10 @@ import { MediaUpload } from '@/components/MediaUpload/MediaUpload'
 interface PostFormProps {
   selectedPostId: string | null
   onPostSelect: (postId: string | null) => void
+  onPostCreated?: () => void
 }
 
-export function PostForm({ selectedPostId, onPostSelect }: PostFormProps) {
+export function PostForm({ selectedPostId, onPostSelect, onPostCreated }: PostFormProps) {
   const { user, organization } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -171,6 +172,11 @@ export function PostForm({ selectedPostId, onPostSelect }: PostFormProps) {
       resetForm()
       onPostSelect(null)
       
+      // Trigger post list refresh
+      if (onPostCreated) {
+        onPostCreated()
+      }
+      
     } catch (error) {
       console.error('Failed to save post:', error)
       setError('Failed to save post')
@@ -193,6 +199,11 @@ export function PostForm({ selectedPostId, onPostSelect }: PostFormProps) {
       // Reset form after successful scheduling
       resetForm()
       onPostSelect(null)
+      
+      // Trigger post list refresh
+      if (onPostCreated) {
+        onPostCreated()
+      }
       
     } catch (error) {
       console.error('Failed to schedule post:', error)

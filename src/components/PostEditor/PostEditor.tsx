@@ -13,6 +13,11 @@ export function PostEditor({ selectedPostId, onPostSelect }: PostEditorProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  const handlePostCreated = () => {
+    setRefreshTrigger(prev => prev + 1)
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -88,6 +93,7 @@ export function PostEditor({ selectedPostId, onPostSelect }: PostEditorProps) {
             searchQuery={searchQuery}
             selectedPostId={selectedPostId}
             onPostSelect={onPostSelect}
+            refreshTrigger={refreshTrigger}
           />
         </div>
 
@@ -96,6 +102,7 @@ export function PostEditor({ selectedPostId, onPostSelect }: PostEditorProps) {
           <PostForm
             selectedPostId={selectedPostId}
             onPostSelect={onPostSelect}
+            onPostCreated={handlePostCreated}
           />
         </div>
       </div>
