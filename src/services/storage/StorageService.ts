@@ -53,10 +53,10 @@ export class StorageService {
       
       // Convert file to buffer
       const arrayBuffer = await file.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
+      const uint8Array = new Uint8Array(arrayBuffer)
       
       // Write file
-      await window.electronAPI.fs.writeFile(filePath, buffer)
+      await window.electronAPI.fs.writeFile(filePath, uint8Array)
       
       // Create media file record
       const mediaFile: MediaFile = {
@@ -116,8 +116,13 @@ export class StorageService {
 
   async getMediaFileUrl(mediaFile: MediaFile): Promise<string> {
     try {
-      // In a real app, you'd return a proper URL
-      // For now, we'll return the file path
+      // Convert file path to a proper URL that can be used in the app
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        // For Electron, we need to convert the file path to a file:// URL
+        return `file://${mediaFile.path}`
+      }
+      
+      // For web environment, we might need to create a blob URL
       return mediaFile.path
     } catch (error) {
       console.error('Failed to get media file URL:', error)
@@ -147,6 +152,17 @@ export class StorageService {
       return filePath
     } catch (error) {
       console.error('Failed to generate thumbnail:', error)
+      throw error
+    }
+  }
+
+  async createImagePreview(mediaFile: MediaFile, maxWidth: number = 800, maxHeight: number = 600): Promise<string> {
+    try {
+      // For now, return the file URL
+      // In a real implementation, this would create a resized preview
+      return await this.getMediaFileUrl(mediaFile)
+    } catch (error) {
+      console.error('Failed to create image preview:', error)
       throw error
     }
   }

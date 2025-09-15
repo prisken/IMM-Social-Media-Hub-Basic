@@ -224,8 +224,8 @@ export class DatabaseService {
         const postMedia = post.media[i]
         const postMediaId = this.generateId()
         await this.execute(
-          'INSERT INTO post_media (id, post_id, media_file_id, order_index) VALUES (?, ?, ?, ?)',
-          [postMediaId, id, postMedia.mediaFileId, postMedia.orderIndex || i]
+          'INSERT INTO post_media (id, post_id, media_file_id, order_index, created_at) VALUES (?, ?, ?, ?, ?)',
+          [postMediaId, id, postMedia.mediaFileId, postMedia.orderIndex || i, now]
         )
       }
     }
@@ -273,13 +273,40 @@ export class DatabaseService {
         [row.id]
       )
       
-      const media = mediaRelations.map(rel => ({
-        id: rel.id,
-        postId: rel.post_id,
-        mediaFileId: rel.media_file_id,
-        orderIndex: rel.order_index,
-        createdAt: rel.created_at
-      }))
+      // Fetch media file data for each relationship
+      const media = await Promise.all(
+        mediaRelations.map(async (rel) => {
+          const mediaFileRows = await this.query(
+            'SELECT * FROM media_files WHERE id = ?',
+            [rel.media_file_id]
+          )
+          
+          const mediaFile = mediaFileRows.length > 0 ? {
+            id: mediaFileRows[0].id,
+            organizationId: mediaFileRows[0].organization_id,
+            filename: mediaFileRows[0].filename,
+            originalName: mediaFileRows[0].original_name,
+            mimeType: mediaFileRows[0].mime_type,
+            size: mediaFileRows[0].size,
+            width: mediaFileRows[0].width,
+            height: mediaFileRows[0].height,
+            duration: mediaFileRows[0].duration,
+            path: mediaFileRows[0].path,
+            thumbnailPath: mediaFileRows[0].thumbnail_path,
+            createdAt: mediaFileRows[0].created_at,
+            metadata: mediaFileRows[0].metadata ? JSON.parse(mediaFileRows[0].metadata) : {}
+          } : null
+          
+          return {
+            id: rel.id,
+            postId: rel.post_id,
+            mediaFileId: rel.media_file_id,
+            orderIndex: rel.order_index,
+            createdAt: rel.created_at,
+            mediaFile: mediaFile
+          }
+        })
+      )
       
       return {
         id: row.id,
@@ -314,13 +341,40 @@ export class DatabaseService {
       [id]
     )
     
-    const media = mediaRelations.map(rel => ({
-      id: rel.id,
-      postId: rel.post_id,
-      mediaFileId: rel.media_file_id,
-      orderIndex: rel.order_index,
-      createdAt: rel.created_at
-    }))
+    // Fetch media file data for each relationship
+    const media = await Promise.all(
+      mediaRelations.map(async (rel) => {
+        const mediaFileRows = await this.query(
+          'SELECT * FROM media_files WHERE id = ?',
+          [rel.media_file_id]
+        )
+        
+        const mediaFile = mediaFileRows.length > 0 ? {
+          id: mediaFileRows[0].id,
+          organizationId: mediaFileRows[0].organization_id,
+          filename: mediaFileRows[0].filename,
+          originalName: mediaFileRows[0].original_name,
+          mimeType: mediaFileRows[0].mime_type,
+          size: mediaFileRows[0].size,
+          width: mediaFileRows[0].width,
+          height: mediaFileRows[0].height,
+          duration: mediaFileRows[0].duration,
+          path: mediaFileRows[0].path,
+          thumbnailPath: mediaFileRows[0].thumbnail_path,
+          createdAt: mediaFileRows[0].created_at,
+          metadata: mediaFileRows[0].metadata ? JSON.parse(mediaFileRows[0].metadata) : {}
+        } : null
+        
+        return {
+          id: rel.id,
+          postId: rel.post_id,
+          mediaFileId: rel.media_file_id,
+          orderIndex: rel.order_index,
+          createdAt: rel.created_at,
+          mediaFile: mediaFile
+        }
+      })
+    )
     
     return {
       id: row.id,

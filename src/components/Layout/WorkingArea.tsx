@@ -3,9 +3,10 @@ import { motion } from 'framer-motion'
 import { PostManagement } from '../PostManagement/PostManagement'
 import { CalendarManagement } from '../Calendar/CalendarManagement'
 import { CategoryManagement } from '../CategoryManager/CategoryManagement'
+import { MediaManagement } from '../MediaUpload/MediaManagement'
 
 interface WorkingAreaProps {
-  currentView: 'posts' | 'calendar' | 'categories'
+  currentView: 'posts' | 'calendar' | 'categories' | 'media'
   selectedPostId: string | null
   onPostSelect: (postId: string | null) => void
 }
@@ -42,6 +43,17 @@ export function WorkingArea({ currentView, selectedPostId, onPostSelect }: Worki
               selectedPostId={selectedPostId}
               onPostSelect={onPostSelect}
             />
+          </motion.div>
+        ) : currentView === 'media' ? (
+          <motion.div
+            key="media"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="h-full"
+          >
+            <MediaManagement />
           </motion.div>
         ) : (
           <motion.div

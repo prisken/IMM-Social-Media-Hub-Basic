@@ -4,6 +4,7 @@ import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal } from 'lucide-re
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { apiService } from '@/services/ApiService'
 import { Post } from '@/types'
+import { createStorageService } from '@/services/storage/StorageService'
 
 interface PostPreviewProps {
   postId: string | null
@@ -13,6 +14,23 @@ export function PostPreview({ postId }: PostPreviewProps) {
   const { organization } = useAuth()
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(false)
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
+
+  // Function to get proper image URL for Electron
+  const getImageUrl = async (mediaFile: any) => {
+    if (!mediaFile?.path) return ''
+    
+    try {
+      if (organization) {
+        const storageService = createStorageService(organization.id)
+        return await storageService.getMediaFileUrl(mediaFile)
+      }
+      return `file://${mediaFile.path}`
+    } catch (error) {
+      console.error('Failed to get image URL:', error)
+      return `file://${mediaFile.path}`
+    }
+  }
 
   useEffect(() => {
     if (postId && postId !== 'new') {
@@ -21,6 +39,25 @@ export function PostPreview({ postId }: PostPreviewProps) {
       setPost(null)
     }
   }, [postId])
+
+  // Load image URLs when post changes
+  useEffect(() => {
+    if (post?.media && post.media.length > 0) {
+      const loadImageUrls = async () => {
+        const urls: Record<string, string> = {}
+        for (const mediaRelation of post.media) {
+          if (mediaRelation.mediaFile) {
+            const url = await getImageUrl(mediaRelation.mediaFile)
+            urls[mediaRelation.mediaFile.id] = url
+          }
+        }
+        setImageUrls(urls)
+      }
+      loadImageUrls()
+    } else {
+      setImageUrls({})
+    }
+  }, [post, organization])
 
   const loadPost = async (id: string) => {
     try {
@@ -120,6 +157,32 @@ export function PostPreview({ postId }: PostPreviewProps) {
               {formatContent(displayPost.content)}
             </p>
             
+            {/* Media Files */}
+            {displayPost.media && displayPost.media.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Media Files:</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {displayPost.media.map((mediaItem, index) => (
+                    <div key={mediaItem.id} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center">
+                          <span className="text-xs">📎</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
+                            {mediaItem.mediaFile?.originalName || `Media ${index + 1}`}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {mediaItem.mediaFile?.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {/* Hashtags */}
             <div className="flex flex-wrap gap-1 mt-3">
               {displayPost.hashtags.map((hashtag, index) => (
@@ -134,8 +197,8 @@ export function PostPreview({ postId }: PostPreviewProps) {
           {displayPost.media && displayPost.media.length > 0 && (
             <div className="relative">
               <img
-                src={displayPost.media[0].path}
-                alt={displayPost.media[0].metadata.alt || ''}
+                src={imageUrls[displayPost.media[0].mediaFile?.id || ''] || `file://${displayPost.media[0].mediaFile?.path || ''}`}
+                alt={displayPost.media[0].mediaFile?.metadata?.alt || ''}
                 className="w-full h-64 object-cover"
                 onError={(e) => {
                   e.currentTarget.src = 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=500&h=300&fit=crop'

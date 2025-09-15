@@ -98,7 +98,12 @@ export function PostManagement({ selectedPostId, onPostSelect }: PostManagementP
       if (editingPost) {
         await postService.updatePost(editingPost.id, postData)
       } else {
-        await postService.createPost(postData as Omit<Post, 'id' | 'createdAt' | 'updatedAt'>)
+        // Extract media files from postData
+        const { media, ...postWithoutMedia } = postData
+        await postService.createPost(
+          postWithoutMedia as Omit<Post, 'id' | 'createdAt' | 'updatedAt'>,
+          media || []
+        )
       }
       setShowPostForm(false)
       setEditingPost(null)

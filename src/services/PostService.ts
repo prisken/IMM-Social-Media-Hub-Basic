@@ -42,7 +42,7 @@ export class PostService extends BaseService {
     })
   }
 
-  async createPost(postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>): Promise<Post> {
+  async createPost(postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>, mediaFiles: PostMedia[] = []): Promise<Post> {
     await this.initializeDatabase()
     
     // Validate required fields
@@ -51,8 +51,14 @@ export class PostService extends BaseService {
       throw new Error(`Missing required fields: ${validation.missingFields.join(', ')}`)
     }
 
+    // Add media files to post data
+    const postWithMedia = {
+      ...postData,
+      media: mediaFiles
+    }
+
     return await this.handleRequest(
-      () => databaseService.createPost(postData),
+      () => databaseService.createPost(postWithMedia),
       'Failed to create post'
     ).then(response => {
       if (response.success) {

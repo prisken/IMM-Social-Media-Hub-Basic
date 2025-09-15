@@ -88,7 +88,7 @@ declare global {
       }
       fs: {
         readFile: (path: string) => Promise<Buffer>
-        writeFile: (path: string, data: Buffer) => Promise<void>
+        writeFile: (path: string, data: Uint8Array) => Promise<void>
         copyFile: (src: string, dest: string) => Promise<void>
         deleteFile: (path: string) => Promise<void>
         createDirectory: (path: string) => Promise<void>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Save, X, Hash, Image, Video, Calendar, Globe } from 'lucide-react'
-import { Post, Category, Topic } from '@/types'
+import { Post, Category, Topic, MediaFile } from '@/types'
+import { MediaManagement } from '@/components/MediaUpload/MediaManagement'
 
 interface PostFormProps {
   post?: Post | null
@@ -27,6 +28,7 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
 
   const [hashtagInput, setHashtagInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedMedia, setSelectedMedia] = useState<MediaFile[]>([])
 
   useEffect(() => {
     if (post) {
@@ -42,6 +44,19 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
         scheduledAt: post.scheduledAt || '',
         metadata: post.metadata || {}
       })
+      
+      // Load existing media files for editing
+      if (post.media && post.media.length > 0) {
+        const existingMediaFiles = post.media
+          .map(mediaRelation => mediaRelation.mediaFile)
+          .filter(mediaFile => mediaFile !== null) as MediaFile[]
+        setSelectedMedia(existingMediaFiles)
+      } else {
+        setSelectedMedia([])
+      }
+    } else {
+      // Reset form when creating new post
+      setSelectedMedia([])
     }
   }, [post])
 
@@ -52,7 +67,14 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
     try {
       await onSave({
         ...formData,
-        scheduledAt: formData.scheduledAt || null
+        scheduledAt: formData.scheduledAt || null,
+        media: selectedMedia.map((media, index) => ({
+          id: `postmedia_${Date.now()}_${index}`, // Generate unique ID for PostMedia relationship
+          postId: post?.id || '', // Will be set after post creation
+          mediaFileId: media.id, // Use the MediaFile ID
+          orderIndex: index,
+          createdAt: new Date().toISOString()
+        }))
       })
     } catch (error) {
       console.error('Failed to save post:', error)
@@ -311,6 +333,19 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Media Upload */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-foreground">Media</h3>
+            <div className="border border-border rounded-lg overflow-hidden">
+              <MediaManagement
+                onMediaSelect={setSelectedMedia}
+                selectedMedia={selectedMedia}
+                allowMultiple={true}
+                maxFiles={10}
+              />
+            </div>
           </div>
 
           {/* Scheduling */}

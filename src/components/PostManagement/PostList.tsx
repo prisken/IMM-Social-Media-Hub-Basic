@@ -185,6 +185,28 @@ export function PostList({
                 {post.content}
               </p>
 
+              {/* Media Preview */}
+              {post.media && post.media.length > 0 && (
+                <div className="mb-3">
+                  <div className="flex items-center gap-2">
+                    <Image className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      {post.media.length} media file{post.media.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {post.media.slice(0, 3).map((media, index) => (
+                    <div key={media.id} className="mt-1 text-xs text-muted-foreground">
+                      {media.mediaFile?.originalName || `Media ${index + 1}`}
+                    </div>
+                  ))}
+                  {post.media.length > 3 && (
+                    <div className="text-xs text-muted-foreground">
+                      +{post.media.length - 3} more
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Hashtags */}
               {post.hashtags && post.hashtags.length > 0 && (
                 <div className="flex items-center gap-1 mb-3">
@@ -266,6 +288,14 @@ export function PostList({
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                   {post.content}
                 </p>
+                {post.media && post.media.length > 0 && (
+                  <div className="flex items-center gap-1 mb-2">
+                    <Image className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      {post.media.length} media
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                   <span>{post.platform}</span>
                   <span>{post.type}</span>

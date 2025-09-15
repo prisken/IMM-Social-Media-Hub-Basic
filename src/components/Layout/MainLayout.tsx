@@ -8,7 +8,7 @@ import { WorkingArea } from './WorkingArea'
 import { Header } from './Header'
 
 export function MainLayout() {
-  const [currentView, setCurrentView] = useState<'posts' | 'calendar' | 'categories'>('posts')
+  const [currentView, setCurrentView] = useState<'posts' | 'calendar' | 'categories' | 'media'>('posts')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   
   return (

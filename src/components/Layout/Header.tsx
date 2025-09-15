@@ -7,8 +7,8 @@ import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { SettingsModal } from './SettingsModal'
 
 interface HeaderProps {
-  currentView: 'posts' | 'calendar' | 'categories'
-  onViewChange: (view: 'posts' | 'calendar' | 'categories') => void
+  currentView: 'posts' | 'calendar' | 'categories' | 'media'
+  onViewChange: (view: 'posts' | 'calendar' | 'categories' | 'media') => void
 }
 
 export function Header({ currentView, onViewChange }: HeaderProps) {
@@ -227,6 +227,16 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
           }`}
         >
           Categories
+        </button>
+        <button
+          onClick={() => onViewChange('media')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            currentView === 'media'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Media
         </button>
       </div>
 

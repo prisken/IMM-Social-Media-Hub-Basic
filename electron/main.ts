@@ -4,6 +4,7 @@ import { isDev } from './utils'
 import Database from 'sqlite3'
 import { promisify } from 'util'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import * as fs from 'fs'
 import * as os from 'os'
 import * as crypto from 'crypto'
 
@@ -688,4 +689,69 @@ ipcMain.handle('auth-delete-organization', async (_, organizationId: string) => 
       )
     })
   })
+})
+
+// File system operations
+ipcMain.handle('fs-read-file', async (_, path: string) => {
+  try {
+    return await fs.promises.readFile(path)
+  } catch (error) {
+    console.error('Failed to read file:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('fs-write-file', async (_, path: string, data: Uint8Array) => {
+  try {
+    const buffer = Buffer.from(data)
+    await fs.promises.writeFile(path, buffer)
+  } catch (error) {
+    console.error('Failed to write file:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('fs-copy-file', async (_, src: string, dest: string) => {
+  try {
+    await fs.promises.copyFile(src, dest)
+  } catch (error) {
+    console.error('Failed to copy file:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('fs-delete-file', async (_, path: string) => {
+  try {
+    await fs.promises.unlink(path)
+  } catch (error) {
+    console.error('Failed to delete file:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('fs-create-directory', async (_, path: string) => {
+  try {
+    await fs.promises.mkdir(path, { recursive: true })
+  } catch (error) {
+    console.error('Failed to create directory:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('fs-list-directory', async (_, path: string) => {
+  try {
+    return await fs.promises.readdir(path)
+  } catch (error) {
+    console.error('Failed to list directory:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('fs-exists', async (_, path: string) => {
+  try {
+    await fs.promises.access(path)
+    return true
+  } catch {
+    return false
+  }
 })
