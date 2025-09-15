@@ -226,6 +226,10 @@ export class DatabaseService {
 
   // Post operations
   async createPost(post: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>): Promise<Post> {
+    if (!this.organizationId) {
+      throw new Error('Organization not set')
+    }
+    
     const id = this.generateId()
     const now = new Date().toISOString()
     
@@ -233,10 +237,10 @@ export class DatabaseService {
     const status = post.status || 'draft'
     
     await this.execute(
-      `INSERT INTO posts (id, category_id, topic_id, title, content, hashtags, platform, type, status, scheduled_at, published_at, metadata, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO posts (id, organization_id, category_id, topic_id, title, content, hashtags, platform, type, status, scheduled_at, published_at, metadata, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, post.categoryId, post.topicId, post.title, post.content,
+        id, this.organizationId, post.categoryId, post.topicId, post.title, post.content,
         JSON.stringify(post.hashtags), post.platform, post.type,
         status, post.scheduledAt || null, post.publishedAt || null,
         JSON.stringify(post.metadata || {}), now, now
