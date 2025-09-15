@@ -65,8 +65,10 @@ export function CalendarManagement({ selectedPostId, onPostSelect }: CalendarMan
       const post = posts.find(p => p.id === postId)
       if (!post) return
 
+      console.log('Updating post:', postId, 'with scheduledAt:', newDate.toISOString(), 'and status: scheduled')
       await postService.updatePost(postId, {
-        scheduledAt: newDate.toISOString()
+        scheduledAt: newDate.toISOString(),
+        status: 'scheduled'
       })
       
       await loadData()
@@ -77,7 +79,10 @@ export function CalendarManagement({ selectedPostId, onPostSelect }: CalendarMan
 
   const handlePostSchedule = async (postId: string, scheduledAt: string | null) => {
     try {
-      await postService.updatePost(postId, { scheduledAt })
+      await postService.updatePost(postId, { 
+        scheduledAt,
+        status: scheduledAt ? 'scheduled' : 'draft'
+      })
       await loadData()
     } catch (error) {
       console.error('Failed to schedule post:', error)
@@ -157,18 +162,36 @@ export function CalendarManagement({ selectedPostId, onPostSelect }: CalendarMan
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {viewMode === 'calendar' ? (
-          <CalendarView
-            posts={posts}
-            categories={categories}
-            topics={topics}
-            selectedDate={selectedDate}
-            selectedPostId={selectedPostId}
-            loading={loading}
-            onDateSelect={handleDateSelect}
-            onPostSelect={onPostSelect}
-            onPostMove={handlePostMove}
-            onPostSchedule={handlePostSchedule}
-          />
+          <div className="h-full flex">
+            {/* Posts List - Left Side */}
+            <div className="w-1/3 border-r border-border">
+              <CalendarList
+                posts={posts}
+                categories={categories}
+                topics={topics}
+                selectedPostId={selectedPostId}
+                loading={loading}
+                onPostSelect={onPostSelect}
+                onPostSchedule={handlePostSchedule}
+              />
+            </div>
+            
+            {/* Calendar View - Right Side */}
+            <div className="w-2/3">
+              <CalendarView
+                posts={posts}
+                categories={categories}
+                topics={topics}
+                selectedDate={selectedDate}
+                selectedPostId={selectedPostId}
+                loading={loading}
+                onDateSelect={handleDateSelect}
+                onPostSelect={onPostSelect}
+                onPostMove={handlePostMove}
+                onPostSchedule={handlePostSchedule}
+              />
+            </div>
+          </div>
         ) : (
           <CalendarList
             posts={posts}

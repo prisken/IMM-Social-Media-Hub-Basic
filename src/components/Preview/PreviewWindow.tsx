@@ -29,7 +29,7 @@ export function PreviewWindow({ selectedPostId, currentView, postRefreshTrigger 
           {previewMode === 'calendar' && <CalendarIcon className="w-5 h-5 text-primary" />}
           <h2 className="font-semibold text-foreground">
             {previewMode === 'post' && 'Post Preview'}
-            {previewMode === 'calendar' && 'Calendar Overview'}
+            {previewMode === 'calendar' && 'Calendar Preview'}
             {previewMode === 'empty' && 'Preview'}
           </h2>
         </div>

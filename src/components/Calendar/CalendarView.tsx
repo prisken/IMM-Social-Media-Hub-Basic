@@ -45,7 +45,7 @@ export function CalendarView({
   }
 
   // Get scheduled posts from the loaded posts
-  const scheduledPosts = posts.filter(post => post.scheduledAt && post.status === 'scheduled')
+  const scheduledPosts = posts.filter(post => post.scheduledAt)
 
   const getCategory = (categoryId: string) => 
     categories.find(cat => cat.id === categoryId)
@@ -77,9 +77,14 @@ export function CalendarView({
   }
 
   const getPostsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0]
+    // Create local date string without timezone conversion
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const localDateStr = `${year}-${month}-${day}`
+    
     return scheduledPosts.filter(post => 
-      post.scheduledAt && post.scheduledAt.startsWith(dateStr)
+      post.scheduledAt && post.scheduledAt.startsWith(localDateStr)
     )
   }
 
@@ -122,6 +127,30 @@ export function CalendarView({
   const handleNextMonth = () => {
     const newDate = new Date(selectedDate)
     newDate.setMonth(selectedDate.getMonth() + 1)
+    onDateSelect(newDate)
+  }
+
+  const handlePreviousWeek = () => {
+    const newDate = new Date(selectedDate)
+    newDate.setDate(selectedDate.getDate() - 7)
+    onDateSelect(newDate)
+  }
+
+  const handleNextWeek = () => {
+    const newDate = new Date(selectedDate)
+    newDate.setDate(selectedDate.getDate() + 7)
+    onDateSelect(newDate)
+  }
+
+  const handlePreviousDay = () => {
+    const newDate = new Date(selectedDate)
+    newDate.setDate(selectedDate.getDate() - 1)
+    onDateSelect(newDate)
+  }
+
+  const handleNextDay = () => {
+    const newDate = new Date(selectedDate)
+    newDate.setDate(selectedDate.getDate() + 1)
     onDateSelect(newDate)
   }
 
@@ -225,24 +254,48 @@ export function CalendarView({
     })
 
     return (
-      <div className="h-full flex flex-col">
-        {/* Day Headers */}
-        <div className="grid grid-cols-7 border-b border-border">
-          {weekDays.map(day => (
-            <div key={day.toISOString()} className="p-3 text-center border-r border-border last:border-r-0">
-              <div className={`text-sm font-medium ${
-                isToday(day) ? 'text-primary' : 'text-foreground'
-              }`}>
-                {day.toLocaleDateString('en-US', { weekday: 'short' })}
-              </div>
-              <div className={`text-lg font-semibold ${
-                isToday(day) ? 'text-primary' : 'text-foreground'
-              }`}>
-                {day.getDate()}
+      <DndProvider backend={HTML5Backend}>
+        <div className="h-full flex flex-col">
+          {/* Week Header */}
+          <div className="p-4 border-b border-border bg-card">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handlePreviousWeek}
+                  className="p-2 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <h2 className="text-xl font-semibold text-foreground">
+                  Week of {startOfWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </h2>
+                <button
+                  onClick={handleNextWeek}
+                  className="p-2 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+
+          {/* Day Headers */}
+          <div className="grid grid-cols-7 border-b border-border">
+            {weekDays.map(day => (
+              <div key={day.toISOString()} className="p-3 text-center border-r border-border last:border-r-0">
+                <div className={`text-sm font-medium ${
+                  isToday(day) ? 'text-primary' : 'text-foreground'
+                }`}>
+                  {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                </div>
+                <div className={`text-lg font-semibold ${
+                  isToday(day) ? 'text-primary' : 'text-foreground'
+                }`}>
+                  {day.getDate()}
+                </div>
+              </div>
+            ))}
+          </div>
 
         {/* Week Grid */}
         <div className="flex-1 grid grid-cols-7">
@@ -267,7 +320,10 @@ export function CalendarView({
                     className={`p-2 rounded text-sm cursor-pointer transition-colors ${
                       selectedPostId === post.id ? 'ring-2 ring-primary' : ''
                     }`}
-                    style={{ backgroundColor: post.color + '20', borderLeft: `3px solid ${post.color}` }}
+                    style={{ 
+                      backgroundColor: (getCategory(post.categoryId)?.color || '#3B82F6') + '20', 
+                      borderLeft: `3px solid ${getCategory(post.categoryId)?.color || '#3B82F6'}` 
+                    }}
                   >
                     <div className="flex items-center gap-2">
                       <span>{getPlatformIcon(post.platform)}</span>
@@ -285,7 +341,8 @@ export function CalendarView({
             </motion.div>
           ))}
         </div>
-      </div>
+        </div>
+      </DndProvider>
     )
   }
 
@@ -293,22 +350,39 @@ export function CalendarView({
   const dayPosts = getPostsForDate(selectedDate)
   
   return (
-    <div className="h-full flex flex-col">
-      {/* Day Header */}
-      <div className="p-4 border-b border-border">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-foreground">
-            {selectedDate.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {dayPosts.length} posts scheduled
+    <DndProvider backend={HTML5Backend}>
+      <div className="h-full flex flex-col">
+        {/* Day Header */}
+        <div className="p-4 border-b border-border bg-card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handlePreviousDay}
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground">
+                  {selectedDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {dayPosts.length} posts scheduled
+                </div>
+              </div>
+              <button
+                onClick={handleNextDay}
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Day Content */}
       <div className="flex-1 overflow-y-auto p-4">
@@ -328,7 +402,7 @@ export function CalendarView({
                 <div className="flex items-start gap-3">
                   <div 
                     className="w-4 h-4 rounded-full mt-1"
-                    style={{ backgroundColor: post.color }}
+                    style={{ backgroundColor: getCategory(post.categoryId)?.color || '#3B82F6' }}
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -354,6 +428,7 @@ export function CalendarView({
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </DndProvider>
   )
 }

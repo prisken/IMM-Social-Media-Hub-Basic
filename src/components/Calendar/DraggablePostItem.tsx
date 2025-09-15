@@ -19,7 +19,7 @@ export function DraggablePostItem({ post, category, topic, isSelected, onClick }
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
-  }))
+  }), [post.id, post.title])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -44,17 +44,22 @@ export function DraggablePostItem({ post, category, topic, isSelected, onClick }
     <motion.div
       ref={drag}
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: isDragging ? 0.5 : 1, y: 0 }}
+      animate={{ 
+        opacity: isDragging ? 0.3 : 1, 
+        y: 0,
+        scale: isDragging ? 0.95 : 1,
+        rotate: isDragging ? 2 : 0
+      }}
       transition={{ duration: 0.3 }}
       onClick={onClick}
-      className={`group cursor-pointer p-3 rounded-lg border border-border transition-all hover:shadow-md ${
+      className={`group cursor-grab active:cursor-grabbing p-3 rounded-lg border border-border transition-all hover:shadow-md ${
         isSelected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
-      } ${isDragging ? 'opacity-50' : ''}`}
+      } ${isDragging ? 'opacity-30 shadow-xl border-primary' : ''}`}
     >
       <div className="flex items-start gap-3">
         {/* Drag Handle */}
-        <div className="flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        <div className="flex-shrink-0 mt-1 opacity-60 group-hover:opacity-100 transition-opacity">
+          <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
         </div>
 
         {/* Color Indicator */}

@@ -2,6 +2,7 @@ import React from 'react'
 import { useDrop } from 'react-dnd'
 import { motion } from 'framer-motion'
 import { Plus } from 'lucide-react'
+import { useModal } from '../ui/modal-provider'
 
 interface DroppableCalendarDayProps {
   date: Date | null
@@ -22,6 +23,8 @@ export function DroppableCalendarDay({
   onPostClick,
   children 
 }: DroppableCalendarDayProps) {
+  const { openTimePicker } = useModal()
+
   // Handle null date (empty calendar cells)
   if (!date) {
     return (
@@ -31,14 +34,26 @@ export function DroppableCalendarDay({
 
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'post',
-    drop: (item: { id: string; type: string }) => {
-      onPostDrop(item.id, date)
+    drop: (item: { id: string; type: string; title: string }) => {
+      console.log('Dropping post:', item.id, 'on date:', date)
+      openTimePicker({
+        postId: item.id,
+        postTitle: item.title,
+        selectedDate: date,
+        onConfirm: (dateTime: Date) => {
+          onPostDrop(item.id, dateTime)
+        },
+        onCancel: () => {
+          // Just close the modal, no action needed
+        }
+      })
     },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
     }),
-  }))
+  }), [date, openTimePicker, onPostDrop])
+
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
@@ -53,12 +68,12 @@ export function DroppableCalendarDay({
   return (
     <motion.div
       ref={drop}
-      className={`border-r border-b border-border p-2 min-h-[120px] relative ${
+      className={`border-r border-b border-border p-2 min-h-[120px] relative transition-all duration-200 ${
         isCurrentMonth ? 'hover:bg-muted/50' : 'bg-muted/20'
       } ${isToday ? 'bg-primary/10' : ''} ${
-        isOver && canDrop ? 'bg-primary/20 border-primary' : ''
+        isOver && canDrop ? 'bg-primary/30 border-2 border-primary shadow-lg' : ''
       }`}
-      whileHover={{ scale: 1.02 }}
+      whileHover={{ scale: isOver && canDrop ? 1.05 : 1.02 }}
       transition={{ duration: 0.2 }}
     >
       {/* Day Number */}
@@ -81,8 +96,8 @@ export function DroppableCalendarDay({
               post.selected ? 'ring-2 ring-primary' : ''
             }`}
             style={{ 
-              backgroundColor: post.color + '20', 
-              borderLeft: `3px solid ${post.color}` 
+              backgroundColor: (post.category?.color || '#3B82F6') + '20', 
+              borderLeft: `3px solid ${post.category?.color || '#3B82F6'}` 
             }}
           >
             <div className="flex items-center gap-1">
@@ -104,10 +119,10 @@ export function DroppableCalendarDay({
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="absolute inset-0 flex items-center justify-center bg-primary/20 rounded-lg border-2 border-dashed border-primary"
+          className="absolute inset-0 flex items-center justify-center bg-primary/40 rounded-lg border-2 border-dashed border-primary z-10"
         >
-          <div className="flex items-center gap-2 text-primary">
-            <Plus className="w-4 h-4" />
+          <div className="flex items-center gap-2 text-primary font-semibold">
+            <Plus className="w-5 h-5" />
             <span className="text-sm font-medium">Drop post here</span>
           </div>
         </motion.div>

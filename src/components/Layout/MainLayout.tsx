@@ -6,6 +6,8 @@ import { useAuth } from '@/components/Auth/AuthProvider'
 import { PreviewWindow } from '../Preview/PreviewWindow'
 import { WorkingArea } from './WorkingArea'
 import { Header } from './Header'
+import { ModalProvider } from '../ui/modal-provider'
+import { GlobalModal } from '../ui/global-modal'
 
 export function MainLayout() {
   const [currentView, setCurrentView] = useState<'posts' | 'calendar' | 'categories' | 'media'>('posts')
@@ -17,16 +19,17 @@ export function MainLayout() {
   }
   
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="h-screen bg-background flex flex-col overflow-hidden">
-        {/* Header */}
-        <Header 
-          currentView={currentView}
-          onViewChange={setCurrentView}
-        />
+    <ModalProvider>
+      <DndProvider backend={HTML5Backend}>
+        <div className="h-screen bg-background flex flex-col overflow-hidden">
+          {/* Header */}
+          <Header 
+            currentView={currentView}
+            onViewChange={setCurrentView}
+          />
 
-        {/* Main Content - Split Screen Layout */}
-        <div className="flex-1 flex overflow-hidden">
+          {/* Main Content - Split Screen Layout */}
+          <div className="flex-1 flex overflow-hidden">
           {/* Preview Window (40%) */}
           <motion.div
             initial={false}
@@ -57,6 +60,10 @@ export function MainLayout() {
           </motion.div>
         </div>
       </div>
+      
+      {/* Global Modal */}
+      <GlobalModal />
     </DndProvider>
+    </ModalProvider>
   )
 }
