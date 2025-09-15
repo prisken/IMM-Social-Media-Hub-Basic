@@ -54,7 +54,12 @@ export function MediaManagement({
         {/* Tab Navigation */}
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
           <button
-            onClick={() => setActiveTab('upload')}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              console.log('MediaManagement: Upload tab clicked')
+              setActiveTab('upload')
+            }}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'upload'
                 ? 'bg-background text-foreground shadow-sm'
@@ -65,7 +70,12 @@ export function MediaManagement({
             Upload
           </button>
           <button
-            onClick={() => setActiveTab('library')}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              console.log('MediaManagement: Library tab clicked')
+              setActiveTab('library')
+            }}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'library'
                 ? 'bg-background text-foreground shadow-sm'
