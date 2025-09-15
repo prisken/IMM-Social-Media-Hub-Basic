@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal } from 'lucide-react'
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { apiService } from '@/services/ApiService'
 import { Post } from '@/types'
@@ -15,6 +15,7 @@ export function PostPreview({ postId, refreshTrigger }: PostPreviewProps) {
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(false)
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
 
   // Function to get proper image URL for Electron using base64 data URLs
   const getImageUrl = async (mediaFile: any) => {
@@ -63,6 +64,11 @@ export function PostPreview({ postId, refreshTrigger }: PostPreviewProps) {
       setImageUrls({})
     }
   }, [post, organization])
+
+  // Reset media index when post changes
+  useEffect(() => {
+    setCurrentMediaIndex(0)
+  }, [post?.id])
 
   const loadPost = async (id: string) => {
     try {
@@ -116,6 +122,27 @@ export function PostPreview({ postId, refreshTrigger }: PostPreviewProps) {
       </React.Fragment>
     ))
   }
+
+  // Media navigation functions
+  const goToPreviousMedia = () => {
+    if (displayPost?.media && displayPost.media.length > 0) {
+      setCurrentMediaIndex((prev) => 
+        prev === 0 ? displayPost.media.length - 1 : prev - 1
+      )
+    }
+  }
+
+  const goToNextMedia = () => {
+    if (displayPost?.media && displayPost.media.length > 0) {
+      setCurrentMediaIndex((prev) => 
+        prev === displayPost.media.length - 1 ? 0 : prev + 1
+      )
+    }
+  }
+
+  // Get current media item
+  const currentMedia = displayPost?.media?.[currentMediaIndex]?.mediaFile
+  const currentMediaUrl = currentMedia ? imageUrls[currentMedia.id] : null
 
   return (
     <div className="h-full overflow-y-auto">
@@ -176,17 +203,18 @@ export function PostPreview({ postId, refreshTrigger }: PostPreviewProps) {
           {/* Media */}
           {displayPost.media && displayPost.media.length > 0 && (
             <div className="relative">
-              {imageUrls[displayPost.media[0].mediaFile?.id || ''] ? (
+              {/* Main Media Display */}
+              {currentMediaUrl ? (
                 <img
-                  src={imageUrls[displayPost.media[0].mediaFile?.id || '']}
-                  alt={displayPost.media[0].mediaFile?.metadata?.alt || displayPost.media[0].mediaFile?.originalName || 'Post image'}
+                  src={currentMediaUrl}
+                  alt={currentMedia?.metadata?.alt || currentMedia?.originalName || 'Post image'}
                   className="w-full h-64 object-cover"
                   onError={(e) => {
-                    console.error('Image failed to load in preview:', imageUrls[displayPost.media[0].mediaFile?.id || ''])
+                    console.error('Image failed to load in preview:', currentMediaUrl)
                     e.currentTarget.style.display = 'none'
                   }}
                   onLoad={() => {
-                    console.log('Image loaded successfully in preview:', displayPost.media[0].mediaFile?.originalName)
+                    console.log('Image loaded successfully in preview:', currentMedia?.originalName)
                   }}
                 />
               ) : (
@@ -194,16 +222,58 @@ export function PostPreview({ postId, refreshTrigger }: PostPreviewProps) {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               )}
+
+              {/* Media Counter */}
               {displayPost.media.length > 1 && (
                 <div className="absolute top-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                  +{displayPost.media.length - 1}
+                  {currentMediaIndex + 1} / {displayPost.media.length}
                 </div>
               )}
+
+              {/* Bookmark Button */}
               <div className="absolute top-4 left-4">
                 <button className="p-2 bg-black/20 backdrop-blur-sm rounded-full">
                   <Bookmark className="w-5 h-5 text-white" />
                 </button>
               </div>
+
+              {/* Navigation Arrows (only show if more than 1 media) */}
+              {displayPost.media.length > 1 && (
+                <>
+                  {/* Previous Button */}
+                  <button
+                    onClick={goToPreviousMedia}
+                    className="absolute left-2 top-1/2 transform -translate-y-1/2 p-2 bg-black/20 backdrop-blur-sm rounded-full hover:bg-black/40 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-white" />
+                  </button>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={goToNextMedia}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 bg-black/20 backdrop-blur-sm rounded-full hover:bg-black/40 transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5 text-white" />
+                  </button>
+                </>
+              )}
+
+              {/* Media Dots Indicator */}
+              {displayPost.media.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-1">
+                  {displayPost.media.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentMediaIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-colors ${
+                        index === currentMediaIndex 
+                          ? 'bg-white' 
+                          : 'bg-white/50 hover:bg-white/75'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
