@@ -7,10 +7,11 @@ import { FileText, Calendar as CalendarIcon } from 'lucide-react'
 
 interface PreviewWindowProps {
   selectedPostId: string | null
-  currentView: 'posts' | 'calendar'
+  currentView: 'posts' | 'calendar' | 'categories' | 'media'
+  postRefreshTrigger?: number // Add refresh trigger for post updates
 }
 
-export function PreviewWindow({ selectedPostId, currentView }: PreviewWindowProps) {
+export function PreviewWindow({ selectedPostId, currentView, postRefreshTrigger }: PreviewWindowProps) {
   const getPreviewMode = () => {
     if (currentView === 'calendar') return 'calendar'
     if (selectedPostId) return 'post'
@@ -44,7 +45,7 @@ export function PreviewWindow({ selectedPostId, currentView }: PreviewWindowProp
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            <PostPreview postId={selectedPostId} />
+            <PostPreview postId={selectedPostId} refreshTrigger={postRefreshTrigger} />
           </motion.div>
         )}
 

@@ -7,9 +7,10 @@ import { Post } from '@/types'
 
 interface PostPreviewProps {
   postId: string | null
+  refreshTrigger?: number // Add refresh trigger to force reload
 }
 
-export function PostPreview({ postId }: PostPreviewProps) {
+export function PostPreview({ postId, refreshTrigger }: PostPreviewProps) {
   const { organization } = useAuth()
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(false)
@@ -35,6 +36,14 @@ export function PostPreview({ postId }: PostPreviewProps) {
       setPost(null)
     }
   }, [postId])
+
+  // Refresh post data when refreshTrigger changes
+  useEffect(() => {
+    if (postId && postId !== 'new' && refreshTrigger !== undefined) {
+      console.log('PostPreview: Refreshing post data due to refresh trigger')
+      loadPost(postId)
+    }
+  }, [refreshTrigger, postId])
 
   // Load image URLs when post changes
   useEffect(() => {

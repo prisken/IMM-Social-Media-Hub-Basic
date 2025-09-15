@@ -12,9 +12,10 @@ import { databaseService } from '@/services/database/DatabaseService'
 interface PostManagementProps {
   selectedPostId: string | null
   onPostSelect: (postId: string | null) => void
+  onPostRefresh?: () => void
 }
 
-export function PostManagement({ selectedPostId, onPostSelect }: PostManagementProps) {
+export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: PostManagementProps) {
   const { currentOrganization } = useAuth()
   const [posts, setPosts] = useState<Post[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -108,6 +109,12 @@ export function PostManagement({ selectedPostId, onPostSelect }: PostManagementP
       setShowPostForm(false)
       setEditingPost(null)
       await loadData()
+      
+      // Trigger preview refresh after saving
+      if (onPostRefresh) {
+        console.log('PostManagement: Triggering post preview refresh')
+        onPostRefresh()
+      }
     } catch (error) {
       console.error('Failed to save post:', error)
     }

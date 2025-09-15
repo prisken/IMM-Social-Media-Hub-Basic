@@ -10,6 +10,11 @@ import { Header } from './Header'
 export function MainLayout() {
   const [currentView, setCurrentView] = useState<'posts' | 'calendar' | 'categories' | 'media'>('posts')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
+  const [postRefreshTrigger, setPostRefreshTrigger] = useState(0)
+
+  const triggerPostRefresh = () => {
+    setPostRefreshTrigger(prev => prev + 1)
+  }
   
   return (
     <DndProvider backend={HTML5Backend}>
@@ -32,6 +37,7 @@ export function MainLayout() {
             <PreviewWindow
               selectedPostId={selectedPostId}
               currentView={currentView}
+              postRefreshTrigger={postRefreshTrigger}
             />
           </motion.div>
 
@@ -46,6 +52,7 @@ export function MainLayout() {
               currentView={currentView}
               selectedPostId={selectedPostId}
               onPostSelect={setSelectedPostId}
+              onPostRefresh={triggerPostRefresh}
             />
           </motion.div>
         </div>
