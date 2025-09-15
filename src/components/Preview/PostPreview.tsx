@@ -4,7 +4,6 @@ import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal } from 'lucide-re
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { apiService } from '@/services/ApiService'
 import { Post } from '@/types'
-import { createStorageService } from '@/services/storage/StorageService'
 
 interface PostPreviewProps {
   postId: string | null
@@ -16,19 +15,16 @@ export function PostPreview({ postId }: PostPreviewProps) {
   const [loading, setLoading] = useState(false)
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({})
 
-  // Function to get proper image URL for Electron
+  // Function to get proper image URL for Electron using base64 data URLs
   const getImageUrl = async (mediaFile: any) => {
     if (!mediaFile?.path) return ''
     
     try {
-      if (organization) {
-        const storageService = createStorageService(organization.id)
-        return await storageService.getMediaFileUrl(mediaFile)
-      }
-      return `file://${mediaFile.path}`
+      // Use the new secure media serving method
+      return await window.electronAPI.fs.serveMediaFile(mediaFile.path)
     } catch (error) {
       console.error('Failed to get image URL:', error)
-      return `file://${mediaFile.path}`
+      return ''
     }
   }
 
@@ -157,31 +153,6 @@ export function PostPreview({ postId }: PostPreviewProps) {
               {formatContent(displayPost.content)}
             </p>
             
-            {/* Media Files */}
-            {displayPost.media && displayPost.media.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Media Files:</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {displayPost.media.map((mediaItem, index) => (
-                    <div key={mediaItem.id} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center">
-                          <span className="text-xs">📎</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                            {mediaItem.mediaFile?.originalName || `Media ${index + 1}`}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {mediaItem.mediaFile?.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             
             {/* Hashtags */}
             <div className="flex flex-wrap gap-1 mt-3">
@@ -196,14 +167,24 @@ export function PostPreview({ postId }: PostPreviewProps) {
           {/* Media */}
           {displayPost.media && displayPost.media.length > 0 && (
             <div className="relative">
-              <img
-                src={imageUrls[displayPost.media[0].mediaFile?.id || ''] || `file://${displayPost.media[0].mediaFile?.path || ''}`}
-                alt={displayPost.media[0].mediaFile?.metadata?.alt || ''}
-                className="w-full h-64 object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=500&h=300&fit=crop'
-                }}
-              />
+              {imageUrls[displayPost.media[0].mediaFile?.id || ''] ? (
+                <img
+                  src={imageUrls[displayPost.media[0].mediaFile?.id || '']}
+                  alt={displayPost.media[0].mediaFile?.metadata?.alt || displayPost.media[0].mediaFile?.originalName || 'Post image'}
+                  className="w-full h-64 object-cover"
+                  onError={(e) => {
+                    console.error('Image failed to load in preview:', imageUrls[displayPost.media[0].mediaFile?.id || ''])
+                    e.currentTarget.style.display = 'none'
+                  }}
+                  onLoad={() => {
+                    console.log('Image loaded successfully in preview:', displayPost.media[0].mediaFile?.originalName)
+                  }}
+                />
+              ) : (
+                <div className="w-full h-64 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              )}
               {displayPost.media.length > 1 && (
                 <div className="absolute top-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded">
                   +{displayPost.media.length - 1}
