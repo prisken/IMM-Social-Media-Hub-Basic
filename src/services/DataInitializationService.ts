@@ -6,19 +6,29 @@ export class DataInitializationService {
 
   static async initializeDefaultData(): Promise<void> {
     if (this.initialized) {
+      console.log('DataInitializationService: Already initialized, skipping')
       return
     }
 
     try {
+      console.log('DataInitializationService: Starting initialization...')
+      
       // Check if categories already exist
       const existingCategories = await databaseService.getCategories()
+      console.log(`DataInitializationService: Found ${existingCategories.length} existing categories`)
       
       if (existingCategories.length === 0) {
+        console.log('DataInitializationService: Creating default categories...')
         await this.createDefaultCategories()
         this.initialized = true
+        console.log('DataInitializationService: Initialization completed successfully')
+      } else {
+        this.initialized = true
+        console.log('DataInitializationService: Categories already exist, marking as initialized')
       }
     } catch (error) {
       console.error('Failed to initialize default data:', error)
+      // Don't mark as initialized if there was an error
     }
   }
 

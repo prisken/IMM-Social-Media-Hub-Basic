@@ -113,11 +113,14 @@ export function EnhancedMediaUpload({
           console.log(`Starting upload for ${file.name}...`)
           const mediaFile = await mediaService.current.uploadFile(file)
           console.log(`Successfully uploaded ${file.name}:`, mediaFile)
+          console.log(`Media file ID: ${mediaFile.id}`)
+          console.log(`Media file path: ${mediaFile.path}`)
           newMediaFiles.push(mediaFile)
           setUploadProgress(prev => ({ ...prev, [file.name]: 100 }))
         } catch (error) {
           console.error(`Failed to upload ${file.name}:`, error)
-          setErrors(prev => [...prev, `Failed to upload ${file.name}`])
+          console.error(`Upload error details:`, error)
+          setErrors(prev => [...prev, `Failed to upload ${file.name}: ${error.message || error}`])
         }
       }
 

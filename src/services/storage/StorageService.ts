@@ -83,6 +83,32 @@ export class StorageService {
         mediaFile.thumbnailPath = filePath
       }
       
+      // Save media file record to database
+      await window.electronAPI.orgDb.execute(
+        this.organizationId,
+        `INSERT INTO media_files (
+          id, organization_id, filename, original_name, mime_type, 
+          size, width, height, duration, path, thumbnail_path, 
+          created_at, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          mediaFile.id,
+          mediaFile.organizationId,
+          mediaFile.filename,
+          mediaFile.originalName,
+          mediaFile.mimeType,
+          mediaFile.size,
+          mediaFile.width || null,
+          mediaFile.height || null,
+          mediaFile.duration || null,
+          mediaFile.path,
+          mediaFile.thumbnailPath || null,
+          mediaFile.createdAt,
+          JSON.stringify(mediaFile.metadata)
+        ]
+      )
+      
+      console.log(`Media file saved to database: ${mediaFile.id}`)
       return mediaFile
     } catch (error) {
       console.error('Failed to upload media file:', error)
@@ -126,6 +152,35 @@ export class StorageService {
       return mediaFile.path
     } catch (error) {
       console.error('Failed to get media file URL:', error)
+      throw error
+    }
+  }
+
+  async getAllMediaFiles(): Promise<MediaFile[]> {
+    try {
+      // Get all media files from the database for this organization
+      const rows = await window.electronAPI.orgDb.query(
+        this.organizationId,
+        'SELECT * FROM media_files ORDER BY created_at DESC'
+      )
+      
+      return rows.map(row => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        filename: row.filename,
+        originalName: row.original_name,
+        mimeType: row.mime_type,
+        size: row.size,
+        width: row.width,
+        height: row.height,
+        duration: row.duration,
+        path: row.path,
+        thumbnailPath: row.thumbnail_path,
+        createdAt: row.created_at,
+        metadata: row.metadata ? JSON.parse(row.metadata) : {}
+      }))
+    } catch (error) {
+      console.error('Failed to get all media files:', error)
       throw error
     }
   }

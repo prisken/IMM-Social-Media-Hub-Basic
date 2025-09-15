@@ -61,16 +61,21 @@ export class DatabaseService {
 
   // Category operations
   async createCategory(category: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>): Promise<Category> {
+    if (!this.organizationId) {
+      throw new Error('Organization not set')
+    }
+    
     const id = this.generateId()
     const now = new Date().toISOString()
     
     await this.execute(
-      'INSERT INTO categories (id, name, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, category.name, category.color, category.description || null, now, now]
+      'INSERT INTO categories (id, organization_id, name, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, this.organizationId, category.name, category.color, category.description || null, now, now]
     )
     
     return {
       id,
+      organizationId: this.organizationId,
       ...category,
       createdAt: now,
       updatedAt: now
@@ -124,16 +129,21 @@ export class DatabaseService {
 
   // Topic operations
   async createTopic(topic: Omit<Topic, 'id' | 'createdAt' | 'updatedAt'>): Promise<Topic> {
+    if (!this.organizationId) {
+      throw new Error('Organization not set')
+    }
+    
     const id = this.generateId()
     const now = new Date().toISOString()
     
     await this.execute(
-      'INSERT INTO topics (id, category_id, name, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, topic.categoryId, topic.name, topic.color, topic.description || null, now, now]
+      'INSERT INTO topics (id, organization_id, category_id, name, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, this.organizationId, topic.categoryId, topic.name, topic.color, topic.description || null, now, now]
     )
     
     return {
       id,
+      organizationId: this.organizationId,
       ...topic,
       createdAt: now,
       updatedAt: now
@@ -141,10 +151,15 @@ export class DatabaseService {
   }
 
   async getTopics(): Promise<Topic[]> {
+    if (!this.organizationId) {
+      throw new Error('Organization not set')
+    }
+    
     const rows = await this.query('SELECT * FROM topics ORDER BY name')
     
     return rows.map(row => ({
       id: row.id,
+      organizationId: this.organizationId!,
       categoryId: row.category_id,
       name: row.name,
       color: row.color,
@@ -155,6 +170,10 @@ export class DatabaseService {
   }
 
   async getTopicsByCategory(categoryId: string): Promise<Topic[]> {
+    if (!this.organizationId) {
+      throw new Error('Organization not set')
+    }
+    
     if (categoryId === '') {
       return this.getTopics()
     }
@@ -163,6 +182,7 @@ export class DatabaseService {
     
     return rows.map(row => ({
       id: row.id,
+      organizationId: this.organizationId!,
       categoryId: row.category_id,
       name: row.name,
       color: row.color,
@@ -173,6 +193,10 @@ export class DatabaseService {
   }
 
   async updateTopic(id: string, updates: Partial<Topic>): Promise<Topic | null> {
+    if (!this.organizationId) {
+      throw new Error('Organization not set')
+    }
+    
     const existing = await this.query('SELECT * FROM topics WHERE id = ?', [id])
     if (existing.length === 0) return null
     
@@ -185,6 +209,7 @@ export class DatabaseService {
     
     return {
       id: topic.id,
+      organizationId: this.organizationId,
       categoryId: topic.category_id,
       name: updated.name,
       color: updated.color,

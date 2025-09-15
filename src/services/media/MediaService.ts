@@ -129,6 +129,17 @@ export class MediaService {
     }
   }
 
+  async getAllMediaFiles(): Promise<MediaFile[]> {
+    try {
+      // Get all media files for this organization from the database
+      const mediaFiles = await this.storageService.getAllMediaFiles()
+      return mediaFiles
+    } catch (error) {
+      console.error('Failed to get media files:', error)
+      throw error
+    }
+  }
+
   async getFileStats(): Promise<{
     totalFiles: number
     totalSize: number

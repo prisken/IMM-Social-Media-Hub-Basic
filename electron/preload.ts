@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createDirectory: (path: string) => ipcRenderer.invoke('fs-create-directory', path),
     listDirectory: (path: string) => ipcRenderer.invoke('fs-list-directory', path),
     exists: (path: string) => ipcRenderer.invoke('fs-exists', path),
+    serveMediaFile: (path: string) => ipcRenderer.invoke('serve-media-file', path),
   },
 })
 
@@ -86,15 +87,16 @@ declare global {
         deleteUser: (userId: string) => Promise<any>
         deleteOrganization: (organizationId: string) => Promise<any>
       }
-      fs: {
-        readFile: (path: string) => Promise<Buffer>
-        writeFile: (path: string, data: Uint8Array) => Promise<void>
-        copyFile: (src: string, dest: string) => Promise<void>
-        deleteFile: (path: string) => Promise<void>
-        createDirectory: (path: string) => Promise<void>
-        listDirectory: (path: string) => Promise<string[]>
-        exists: (path: string) => Promise<boolean>
-      }
+    fs: {
+      readFile: (path: string) => Promise<Buffer>
+      writeFile: (path: string, data: Uint8Array) => Promise<void>
+      copyFile: (src: string, dest: string) => Promise<void>
+      deleteFile: (path: string) => Promise<void>
+      createDirectory: (path: string) => Promise<void>
+      listDirectory: (path: string) => Promise<string[]>
+      exists: (path: string) => Promise<boolean>
+      serveMediaFile: (path: string) => Promise<string>
+    }
     }
   }
 }

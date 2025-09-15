@@ -20,6 +20,7 @@ export function MediaManagement({
 }: MediaManagementProps) {
   const [activeTab, setActiveTab] = useState<'upload' | 'library'>('upload')
   const [libraryMedia, setLibraryMedia] = useState<MediaFile[]>([])
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const handleMediaUploaded = (newMediaFiles: MediaFile[]) => {
     console.log('MediaManagement: Received new media files:', newMediaFiles)
@@ -28,6 +29,9 @@ export function MediaManagement({
     const updatedMedia = [...selectedMedia, ...newMediaFiles]
     console.log('MediaManagement: Updated media selection:', updatedMedia)
     onMediaSelect?.(updatedMedia)
+    
+    // Trigger library refresh
+    setRefreshTrigger(prev => prev + 1)
   }
 
   const handleLibraryMediaUpdate = (mediaFiles: MediaFile[]) => {
@@ -116,6 +120,7 @@ export function MediaManagement({
               }}
               selectedMedia={selectedMedia}
               onMediaUpdate={handleLibraryMediaUpdate}
+              refreshTrigger={refreshTrigger}
             />
           </motion.div>
         )}

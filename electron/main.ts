@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join } from 'path'
+import * as path from 'path'
 import { isDev } from './utils'
 import Database from 'sqlite3'
 import { promisify } from 'util'
@@ -104,26 +105,31 @@ async function createOrganizationTables(db: Database.Database) {
   const schema = `
     CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
       name TEXT NOT NULL,
       color TEXT NOT NULL,
       description TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
     );
     
     CREATE TABLE IF NOT EXISTS topics (
       id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
       category_id TEXT NOT NULL,
       name TEXT NOT NULL,
       color TEXT NOT NULL,
       description TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
     );
     
     CREATE TABLE IF NOT EXISTS posts (
       id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
       category_id TEXT NOT NULL,
       topic_id TEXT NOT NULL,
       title TEXT NOT NULL,
@@ -137,12 +143,14 @@ async function createOrganizationTables(db: Database.Database) {
       metadata TEXT NOT NULL DEFAULT '{}',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
       FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
     );
     
     CREATE TABLE IF NOT EXISTS media_files (
       id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
       filename TEXT NOT NULL,
       original_name TEXT NOT NULL,
       mime_type TEXT NOT NULL,
@@ -153,7 +161,8 @@ async function createOrganizationTables(db: Database.Database) {
       path TEXT NOT NULL,
       thumbnail_path TEXT,
       metadata TEXT NOT NULL DEFAULT '{}',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
     );
     
     CREATE TABLE IF NOT EXISTS post_media (
@@ -170,14 +179,17 @@ async function createOrganizationTables(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS calendar_events (
       id TEXT PRIMARY KEY,
       post_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
       scheduled_at DATETIME NOT NULL,
       status TEXT NOT NULL DEFAULT 'scheduled',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+      FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
     );
     
     CREATE TABLE IF NOT EXISTS post_templates (
       id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
       name TEXT NOT NULL,
       content TEXT NOT NULL,
       media_template TEXT,
@@ -186,7 +198,8 @@ async function createOrganizationTables(db: Database.Database) {
       type TEXT NOT NULL,
       is_default BOOLEAN DEFAULT FALSE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
     );
   `
   
@@ -747,11 +760,44 @@ ipcMain.handle('fs-list-directory', async (_, path: string) => {
   }
 })
 
-ipcMain.handle('fs-exists', async (_, path: string) => {
-  try {
-    await fs.promises.access(path)
-    return true
-  } catch {
-    return false
+  ipcMain.handle('fs-exists', async (_, path: string) => {
+    try {
+      await fs.promises.access(path)
+      return true
+    } catch {
+      return false
+    }
+  })
+
+  // Handle serving media files
+  ipcMain.handle('serve-media-file', async (_, filePath: string) => {
+    try {
+      // Read the file and convert to base64 data URL
+      const fileBuffer = await fs.promises.readFile(filePath)
+      const mimeType = getMimeTypeFromPath(filePath)
+      const base64Data = fileBuffer.toString('base64')
+      return `data:${mimeType};base64,${base64Data}`
+    } catch (error) {
+      console.error('Failed to serve media file:', error)
+      throw error
+    }
+  })
+
+  // Helper function to get MIME type from file extension
+  function getMimeTypeFromPath(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase()
+    const mimeTypes: { [key: string]: string } = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+      '.ogg': 'video/ogg',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav'
+    }
+    return mimeTypes[ext] || 'application/octet-stream'
   }
-})

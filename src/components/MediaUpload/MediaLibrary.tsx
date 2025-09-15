@@ -10,9 +10,10 @@ interface MediaLibraryProps {
   onMediaSelect?: (mediaFile: MediaFile) => void
   selectedMedia?: MediaFile[]
   onMediaUpdate?: (mediaFiles: MediaFile[]) => void
+  refreshTrigger?: number // Add this to trigger refresh
 }
 
-export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate }: MediaLibraryProps) {
+export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate, refreshTrigger }: MediaLibraryProps) {
   const { currentOrganization } = useAuth()
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,6 +24,7 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate 
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [previewMedia, setPreviewMedia] = useState<MediaFile | null>(null)
   const [editingMedia, setEditingMedia] = useState<MediaFile | null>(null)
+  const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map())
   
   const mediaService = React.useRef<MediaService | null>(null)
 
@@ -34,17 +36,63 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate 
     }
   }, [currentOrganization])
 
+  // Refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined && currentOrganization) {
+      loadMediaFiles()
+    }
+  }, [refreshTrigger, currentOrganization])
+
+  // Load image URLs when mediaFiles change
+  useEffect(() => {
+    const loadImageUrls = async () => {
+      console.log(`Loading image URLs for ${mediaFiles.length} media files...`)
+      const newImageUrls = new Map<string, string>()
+      
+      // Process images sequentially to avoid overwhelming the IPC
+      for (const mediaFile of mediaFiles) {
+        if (mediaFile.mimeType.startsWith('image/')) {
+          try {
+            console.log(`Loading URL for image: ${mediaFile.originalName}`)
+            const url = await generatePreviewUrl(mediaFile)
+            if (url) {
+              newImageUrls.set(mediaFile.id, url)
+              console.log(`Successfully loaded URL for: ${mediaFile.originalName}`)
+            } else {
+              console.warn(`No URL generated for: ${mediaFile.originalName}`)
+            }
+          } catch (error) {
+            console.error(`Failed to load image URL for ${mediaFile.id}:`, error)
+          }
+        }
+      }
+      
+      console.log(`Loaded ${newImageUrls.size} image URLs`)
+      setImageUrls(newImageUrls)
+    }
+
+    if (mediaFiles.length > 0) {
+      loadImageUrls()
+    } else {
+      setImageUrls(new Map())
+    }
+  }, [mediaFiles])
+
   const loadMediaFiles = async () => {
     if (!mediaService.current) return
 
     setLoading(true)
     try {
-      // For now, we'll simulate loading media files
-      // In a real app, this would call the media service to get files from the database
-      const mockFiles: MediaFile[] = []
-      setMediaFiles(mockFiles)
+      console.log('Loading media files from database...')
+      console.log('Current organization:', currentOrganization?.id)
+      const files = await mediaService.current.getAllMediaFiles()
+      console.log('Loaded media files:', files)
+      console.log('Number of files loaded:', files.length)
+      setMediaFiles(files)
     } catch (error) {
       console.error('Failed to load media files:', error)
+      console.error('Error details:', error)
+      setMediaFiles([])
     } finally {
       setLoading(false)
     }
@@ -133,10 +181,15 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate 
     return '📄'
   }
 
-  const generatePreviewUrl = (mediaFile: MediaFile): string => {
-    // For now, we'll use a placeholder. In a real app, this would generate proper URLs
+  const generatePreviewUrl = async (mediaFile: MediaFile): Promise<string> => {
+    // Use Electron's IPC to serve media files securely
     if (mediaFile.mimeType.startsWith('image/')) {
-      return `data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=`
+      try {
+        return await window.electronAPI.fs.serveMediaFile(mediaFile.path)
+      } catch (error) {
+        console.error('Failed to serve media file:', error)
+        return ''
+      }
     }
     return ''
   }
@@ -256,14 +309,25 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate 
                       {/* Grid View */}
                       <div className="aspect-video bg-muted/50 relative">
                         {isImage ? (
-                          <img
-                            src={generatePreviewUrl(mediaFile)}
-                            alt={mediaFile.metadata.alt || mediaFile.originalName}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none'
-                            }}
-                          />
+                          imageUrls.has(mediaFile.id) ? (
+                            <img
+                              src={imageUrls.get(mediaFile.id)}
+                              alt={mediaFile.metadata.alt || mediaFile.originalName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('Image failed to load:', imageUrls.get(mediaFile.id))
+                                console.error('Media file path:', mediaFile.path)
+                                e.currentTarget.style.display = 'none'
+                              }}
+                              onLoad={() => {
+                                console.log('Image loaded successfully:', imageUrls.get(mediaFile.id))
+                              }}
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            </div>
+                          )
                         ) : (
                           <div className="flex items-center justify-center h-full">
                             <span className="text-2xl">{getFileIcon(mediaFile.mimeType)}</span>
@@ -321,11 +385,25 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate 
                       <div className="flex items-center gap-3 flex-1">
                         <div className="w-12 h-12 bg-muted/50 rounded flex items-center justify-center">
                           {isImage ? (
-                            <img
-                              src={generatePreviewUrl(mediaFile)}
-                              alt={mediaFile.metadata.alt || mediaFile.originalName}
-                              className="w-full h-full object-cover rounded"
-                            />
+                            imageUrls.has(mediaFile.id) ? (
+                              <img
+                                src={imageUrls.get(mediaFile.id)}
+                                alt={mediaFile.metadata.alt || mediaFile.originalName}
+                                className="w-full h-full object-cover rounded"
+                                onError={(e) => {
+                                  console.error('List view image failed to load:', imageUrls.get(mediaFile.id))
+                                  console.error('Media file path:', mediaFile.path)
+                                  e.currentTarget.style.display = 'none'
+                                }}
+                                onLoad={() => {
+                                  console.log('List view image loaded successfully:', imageUrls.get(mediaFile.id))
+                                }}
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                              </div>
+                            )
                           ) : (
                             <span className="text-lg">{getFileIcon(mediaFile.mimeType)}</span>
                           )}

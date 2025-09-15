@@ -158,6 +158,12 @@ export class MigrationService {
         applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         description TEXT
       );
+
+      -- Migration 6: Add missing organization_id column to media_files table
+      ALTER TABLE media_files ADD COLUMN organization_id TEXT;
+      
+      -- Migration 7: Add missing created_at column to media_files table
+      ALTER TABLE media_files ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
     `
   }
 
