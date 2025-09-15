@@ -2,15 +2,17 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { useDrag } from 'react-dnd'
 import { GripVertical, MoreHorizontal, Calendar } from 'lucide-react'
-import { Post } from '@/types'
+import { Post, Category, Topic } from '@/types'
 
 interface DraggablePostItemProps {
   post: Post
+  category?: Category
+  topic?: Topic
   isSelected: boolean
   onClick: () => void
 }
 
-export function DraggablePostItem({ post, isSelected, onClick }: DraggablePostItemProps) {
+export function DraggablePostItem({ post, category, topic, isSelected, onClick }: DraggablePostItemProps) {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'post',
     item: { id: post.id, title: post.title, type: 'post' },
@@ -56,7 +58,10 @@ export function DraggablePostItem({ post, isSelected, onClick }: DraggablePostIt
         </div>
 
         {/* Color Indicator */}
-        <div className="w-3 h-3 rounded-full flex-shrink-0 mt-1 bg-primary" />
+        <div 
+          className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
+          style={{ backgroundColor: category?.color || '#3B82F6' }}
+        />
 
         {/* Content */}
         <div className="flex-1 min-w-0">
@@ -78,6 +83,26 @@ export function DraggablePostItem({ post, isSelected, onClick }: DraggablePostIt
             <span className="text-xs text-muted-foreground capitalize">
               {post.type}
             </span>
+          </div>
+
+          {/* Category and Topic */}
+          <div className="flex items-center gap-2 mb-2">
+            {category && (
+              <span 
+                className="text-xs px-2 py-1 rounded-full text-white"
+                style={{ backgroundColor: category.color }}
+              >
+                {category.name}
+              </span>
+            )}
+            {topic && (
+              <span 
+                className="text-xs px-2 py-1 rounded-full text-white"
+                style={{ backgroundColor: topic.color }}
+              >
+                {topic.name}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-between">

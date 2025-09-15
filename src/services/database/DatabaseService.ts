@@ -140,7 +140,25 @@ export class DatabaseService {
     }
   }
 
+  async getTopics(): Promise<Topic[]> {
+    const rows = await this.query('SELECT * FROM topics ORDER BY name')
+    
+    return rows.map(row => ({
+      id: row.id,
+      categoryId: row.category_id,
+      name: row.name,
+      color: row.color,
+      description: row.description,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }))
+  }
+
   async getTopicsByCategory(categoryId: string): Promise<Topic[]> {
+    if (categoryId === '') {
+      return this.getTopics()
+    }
+    
     const rows = await this.query('SELECT * FROM topics WHERE category_id = ? ORDER BY name', [categoryId])
     
     return rows.map(row => ({

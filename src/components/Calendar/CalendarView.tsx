@@ -4,54 +4,41 @@ import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/components/Auth/AuthProvider'
-import { apiService } from '@/services/ApiService'
+import { PostService } from '@/services/PostService'
 import { DroppableCalendarDay } from './DroppableCalendarDay'
-import { Post } from '@/types'
+import { Post, Category, Topic } from '@/types'
 
 interface CalendarViewProps {
-  currentDate: Date
-  viewMode: 'month' | 'week' | 'day'
+  posts: Post[]
+  categories: Category[]
+  topics: Topic[]
+  selectedDate: Date
   selectedPostId: string | null
+  loading: boolean
+  onDateSelect: (date: Date) => void
   onPostSelect: (postId: string | null) => void
+  onPostMove: (postId: string, newDate: Date) => Promise<void>
+  onPostSchedule: (postId: string, scheduledAt: string | null) => Promise<void>
 }
 
-export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSelect }: CalendarViewProps) {
-  const { organization } = useAuth()
-  const [posts, setPosts] = useState<Post[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (organization) {
-      loadPosts()
-    }
-  }, [organization])
-
-  const loadPosts = async () => {
-    try {
-      setLoading(true)
-      const posts = await apiService.getPosts()
-      setPosts(posts)
-    } catch (error) {
-      console.error('Failed to load posts:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+export function CalendarView({ 
+  posts, 
+  categories, 
+  topics, 
+  selectedDate, 
+  selectedPostId, 
+  loading,
+  onDateSelect,
+  onPostSelect, 
+  onPostMove,
+  onPostSchedule 
+}: CalendarViewProps) {
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
 
   const handlePostDrop = async (postId: string, date: Date) => {
     try {
       console.log('Scheduling post:', postId, 'for date:', date)
-      
-      // Update the post in the database
-      const updatedPost = await apiService.updatePost(postId, {
-        scheduledAt: date.toISOString(),
-        status: 'scheduled'
-      })
-      
-      // Update the local state
-      setPosts(prev => prev.map(post => 
-        post.id === postId ? updatedPost : post
-      ))
+      await onPostMove(postId, date)
     } catch (error) {
       console.error('Failed to schedule post:', error)
     }
@@ -59,6 +46,12 @@ export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSele
 
   // Get scheduled posts from the loaded posts
   const scheduledPosts = posts.filter(post => post.scheduledAt && post.status === 'scheduled')
+
+  const getCategory = (categoryId: string) => 
+    categories.find(cat => cat.id === categoryId)
+  
+  const getTopic = (topicId: string) => 
+    topics.find(topic => topic.id === topicId)
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -86,7 +79,7 @@ export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSele
   const getPostsForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0]
     return scheduledPosts.filter(post => 
-      post.scheduledAt.startsWith(dateStr)
+      post.scheduledAt && post.scheduledAt.startsWith(dateStr)
     )
   }
 
@@ -96,7 +89,18 @@ export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSele
   }
 
   const isCurrentMonth = (date: Date) => {
-    return date.getMonth() === currentDate.getMonth()
+    return date.getMonth() === selectedDate.getMonth()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading calendar...</p>
+        </div>
+      </div>
+    )
   }
 
   const getPlatformIcon = (platform: string) => {
@@ -109,13 +113,74 @@ export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSele
     }
   }
 
+  const handlePreviousMonth = () => {
+    const newDate = new Date(selectedDate)
+    newDate.setMonth(selectedDate.getMonth() - 1)
+    onDateSelect(newDate)
+  }
+
+  const handleNextMonth = () => {
+    const newDate = new Date(selectedDate)
+    newDate.setMonth(selectedDate.getMonth() + 1)
+    onDateSelect(newDate)
+  }
+
   if (viewMode === 'month') {
-    const days = getDaysInMonth(currentDate)
+    const days = getDaysInMonth(selectedDate)
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
     return (
       <DndProvider backend={HTML5Backend}>
         <div className="h-full flex flex-col">
+          {/* Calendar Header */}
+          <div className="p-4 border-b border-border bg-card">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handlePreviousMonth}
+                  className="p-2 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <h2 className="text-xl font-semibold text-foreground">
+                  {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h2>
+                <button
+                  onClick={handleNextMonth}
+                  className="p-2 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('month')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    viewMode === 'month' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Month
+                </button>
+                <button
+                  onClick={() => setViewMode('week')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    viewMode === 'week' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  onClick={() => setViewMode('day')}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    viewMode === 'day' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Day
+                </button>
+              </div>
+            </div>
+          </div>
           {/* Day Headers */}
           <div className="grid grid-cols-7 border-b border-border">
             {dayNames.map(day => (
@@ -133,7 +198,9 @@ export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSele
                 date={day}
                 posts={day ? getPostsForDate(day).map(post => ({
                   ...post,
-                  selected: selectedPostId === post.id
+                  selected: selectedPostId === post.id,
+                  category: getCategory(post.categoryId),
+                  topic: getTopic(post.topicId)
                 })) : []}
                 isToday={day ? isToday(day) : false}
                 isCurrentMonth={day ? isCurrentMonth(day) : false}
@@ -148,8 +215,8 @@ export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSele
   }
 
   if (viewMode === 'week') {
-    const startOfWeek = new Date(currentDate)
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
+    const startOfWeek = new Date(selectedDate)
+    startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay())
     
     const weekDays = Array.from({ length: 7 }, (_, i) => {
       const day = new Date(startOfWeek)
@@ -223,7 +290,7 @@ export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSele
   }
 
   // Day view
-  const dayPosts = getPostsForDate(currentDate)
+  const dayPosts = getPostsForDate(selectedDate)
   
   return (
     <div className="h-full flex flex-col">
@@ -231,7 +298,7 @@ export function CalendarView({ currentDate, viewMode, selectedPostId, onPostSele
       <div className="p-4 border-b border-border">
         <div className="text-center">
           <div className="text-2xl font-bold text-foreground">
-            {currentDate.toLocaleDateString('en-US', { 
+            {selectedDate.toLocaleDateString('en-US', { 
               weekday: 'long', 
               month: 'long', 
               day: 'numeric' 

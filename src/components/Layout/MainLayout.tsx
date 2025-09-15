@@ -3,15 +3,14 @@ import { motion } from 'framer-motion'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { useAuth } from '@/components/Auth/AuthProvider'
-import { Sidebar } from './Sidebar'
 import { PreviewWindow } from '../Preview/PreviewWindow'
 import { WorkingArea } from './WorkingArea'
 import { Header } from './Header'
 
 export function MainLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [currentView, setCurrentView] = useState<'posts' | 'calendar'>('posts')
+  const [currentView, setCurrentView] = useState<'posts' | 'calendar' | 'categories'>('posts')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
+  
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-screen bg-background flex flex-col overflow-hidden">
@@ -21,26 +20,7 @@ export function MainLayout() {
           onViewChange={setCurrentView}
         />
 
-        {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <motion.div
-          initial={false}
-          animate={{ width: sidebarCollapsed ? 60 : 280 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="bg-card border-r border-border flex-shrink-0"
-        >
-          <Sidebar
-            collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-            currentView={currentView}
-            onViewChange={setCurrentView}
-            selectedPostId={selectedPostId}
-            onPostSelect={setSelectedPostId}
-          />
-        </motion.div>
-
-        {/* Main Content Area */}
+        {/* Main Content - Split Screen Layout */}
         <div className="flex-1 flex overflow-hidden">
           {/* Preview Window (40%) */}
           <motion.div
@@ -69,7 +49,6 @@ export function MainLayout() {
             />
           </motion.div>
         </div>
-      </div>
       </div>
     </DndProvider>
   )

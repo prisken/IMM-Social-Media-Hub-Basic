@@ -1,4 +1,5 @@
 import { Organization, User, AuthState } from '@/types'
+import { databaseService } from './database/DatabaseService'
 
 export interface AppUser {
   id: string
@@ -83,6 +84,13 @@ export class AuthService {
         if (organizations.length > 0 && currentOrg) {
           // Create organization database if it doesn't exist
           await window.electronAPI.createOrganizationDb(session.organizationId)
+          
+          // Initialize database service for this organization
+          await databaseService.initializeDatabase(session.organizationId)
+          
+          // Initialize default data (categories, topics) if needed
+          const { DataInitializationService } = await import('./DataInitializationService')
+          await DataInitializationService.initializeDefaultData()
           
           // Get user info (we'll get it from the organizations query)
           const userInfo = {
@@ -311,6 +319,13 @@ export class AuthService {
       // Create organization database if it doesn't exist
       if (typeof window !== 'undefined' && window.electronAPI) {
         await window.electronAPI.createOrganizationDb(organizationId)
+        
+        // Initialize database service for this organization
+        await databaseService.initializeDatabase(organizationId)
+        
+        // Initialize default data (categories, topics) if needed
+        const { DataInitializationService } = await import('./DataInitializationService')
+        await DataInitializationService.initializeDefaultData()
       }
       
       this.updateAuthState({
