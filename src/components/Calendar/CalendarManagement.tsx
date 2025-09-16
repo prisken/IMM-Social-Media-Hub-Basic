@@ -11,9 +11,10 @@ import { databaseService } from '@/services/database/DatabaseService'
 interface CalendarManagementProps {
   selectedPostId: string | null
   onPostSelect: (postId: string | null) => void
+  postRefreshTrigger?: number
 }
 
-export function CalendarManagement({ selectedPostId, onPostSelect }: CalendarManagementProps) {
+export function CalendarManagement({ selectedPostId, onPostSelect, postRefreshTrigger }: CalendarManagementProps) {
   const { currentOrganization } = useAuth()
   const [posts, setPosts] = useState<Post[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -31,6 +32,12 @@ export function CalendarManagement({ selectedPostId, onPostSelect }: CalendarMan
       initializeServices()
     }
   }, [currentOrganization])
+
+  useEffect(() => {
+    if (postRefreshTrigger && postRefreshTrigger > 0) {
+      loadData()
+    }
+  }, [postRefreshTrigger])
 
   const initializeServices = async () => {
     try {

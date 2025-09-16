@@ -9,9 +9,10 @@ interface PreviewWindowProps {
   selectedPostId: string | null
   currentView: 'posts' | 'calendar' | 'categories' | 'media'
   postRefreshTrigger?: number // Add refresh trigger for post updates
+  onPostSelect?: (postId: string | null) => void
 }
 
-export function PreviewWindow({ selectedPostId, currentView, postRefreshTrigger }: PreviewWindowProps) {
+export function PreviewWindow({ selectedPostId, currentView, postRefreshTrigger, onPostSelect }: PreviewWindowProps) {
   const getPreviewMode = () => {
     if (currentView === 'calendar') return 'calendar'
     if (selectedPostId) return 'post'
@@ -57,7 +58,11 @@ export function PreviewWindow({ selectedPostId, currentView, postRefreshTrigger 
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            <CalendarPreview />
+            <CalendarPreview 
+              selectedPostId={selectedPostId}
+              onPostSelect={onPostSelect}
+              postRefreshTrigger={postRefreshTrigger}
+            />
           </motion.div>
         )}
 

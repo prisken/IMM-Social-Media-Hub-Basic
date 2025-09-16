@@ -4,8 +4,15 @@ import { Calendar as CalendarIcon, Clock, Users, TrendingUp, FileText, Plus } fr
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { PostService } from '@/services/PostService'
 import { Post, Category, Topic } from '@/types'
+import { PostEditorForm } from '@/components/PostEditor/PostEditorForm'
 
-export function CalendarPreview() {
+interface CalendarPreviewProps {
+  selectedPostId?: string | null
+  onPostSelect?: (postId: string | null) => void
+  postRefreshTrigger?: number
+}
+
+export function CalendarPreview({ selectedPostId, onPostSelect, postRefreshTrigger }: CalendarPreviewProps) {
   const { organization } = useAuth()
   const [posts, setPosts] = useState<Post[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -17,6 +24,20 @@ export function CalendarPreview() {
     // Always try to load data, let PostService handle organization context
     loadData()
   }, [organization?.id])
+
+  useEffect(() => {
+    if (postRefreshTrigger && postRefreshTrigger > 0) {
+      loadData()
+    }
+  }, [postRefreshTrigger])
+
+  const handlePostCreated = () => {
+    loadData()
+  }
+
+  const handlePostUpdated = () => {
+    loadData()
+  }
 
   const loadData = async () => {
     try {
@@ -44,6 +65,20 @@ export function CalendarPreview() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // If a post is selected, show the editor
+  if (selectedPostId) {
+    return (
+      <PostEditorForm
+        selectedPostId={selectedPostId}
+        onPostSelect={onPostSelect || (() => {})}
+        onPostCreated={handlePostCreated}
+        onPostUpdated={handlePostUpdated}
+        showCloseButton={true}
+        mode="edit"
+      />
+    )
   }
 
   // Calculate real stats

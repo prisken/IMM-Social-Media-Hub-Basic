@@ -10,9 +10,10 @@ interface WorkingAreaProps {
   selectedPostId: string | null
   onPostSelect: (postId: string | null) => void
   onPostRefresh?: () => void
+  postRefreshTrigger?: number
 }
 
-export function WorkingArea({ currentView, selectedPostId, onPostSelect, onPostRefresh }: WorkingAreaProps) {
+export function WorkingArea({ currentView, selectedPostId, onPostSelect, onPostRefresh, postRefreshTrigger }: WorkingAreaProps) {
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Tab Content */}
@@ -44,6 +45,7 @@ export function WorkingArea({ currentView, selectedPostId, onPostSelect, onPostR
             <CalendarManagement
               selectedPostId={selectedPostId}
               onPostSelect={onPostSelect}
+              postRefreshTrigger={postRefreshTrigger}
             />
           </motion.div>
         ) : currentView === 'media' ? (

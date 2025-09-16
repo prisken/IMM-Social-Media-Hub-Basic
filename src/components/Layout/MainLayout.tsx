@@ -41,6 +41,7 @@ export function MainLayout() {
               selectedPostId={selectedPostId}
               currentView={currentView}
               postRefreshTrigger={postRefreshTrigger}
+              onPostSelect={setSelectedPostId}
             />
           </motion.div>
 
@@ -56,6 +57,7 @@ export function MainLayout() {
               selectedPostId={selectedPostId}
               onPostSelect={setSelectedPostId}
               onPostRefresh={triggerPostRefresh}
+              postRefreshTrigger={postRefreshTrigger}
             />
           </motion.div>
         </div>
