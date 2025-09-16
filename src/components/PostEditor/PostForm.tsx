@@ -98,7 +98,9 @@ export function PostForm({ selectedPostId, onPostSelect, onPostCreated }: PostFo
         setValue('platform', post.platform)
         setValue('type', post.type)
         setValue('hashtags', post.hashtags)
-        setValue('scheduledAt', post.scheduledAt || '')
+        // Convert ISO date to datetime-local format
+        const scheduledDate = post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 16) : ''
+        setValue('scheduledAt', scheduledDate)
       }
       
     } catch (error) {

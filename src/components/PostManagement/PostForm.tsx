@@ -41,7 +41,7 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
         type: post.type || 'post',
         status: post.status || 'draft',
         hashtags: post.hashtags || [],
-        scheduledAt: post.scheduledAt || '',
+        scheduledAt: post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 16) : '',
         metadata: post.metadata || {}
       })
       

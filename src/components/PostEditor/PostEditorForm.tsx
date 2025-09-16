@@ -25,7 +25,7 @@ export function PostEditorForm({
   showCloseButton = false,
   mode
 }: PostEditorFormProps) {
-  const { user, organization } = useAuth()
+  const { user, currentOrganization } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
@@ -53,10 +53,10 @@ export function PostEditorForm({
 
   // Load categories and topics
   useEffect(() => {
-    if (organization) {
+    if (currentOrganization) {
       loadCategories()
     }
-  }, [organization])
+  }, [currentOrganization])
 
   useEffect(() => {
     if (watchedCategoryId) {
@@ -108,7 +108,15 @@ export function PostEditorForm({
         setValue('platform', post.platform)
         setValue('type', post.type)
         setValue('hashtags', post.hashtags)
-        setValue('scheduledAt', post.scheduledAt || '')
+        // Convert ISO date to datetime-local format
+        const scheduledDate = post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 16) : ''
+        setValue('scheduledAt', scheduledDate)
+        
+        // Load topics for the post's category
+        if (post.categoryId) {
+          await loadTopics(post.categoryId)
+        }
+        
         // Note: Media files are not loaded back into the form for re-uploading in this simplified example
       }
       
@@ -160,8 +168,8 @@ export function PostEditorForm({
 
       // Upload media files if any
       let mediaFiles: any[] = []
-      if (uploadedFiles.length > 0 && organization) {
-        const mediaService = createMediaService(organization.id)
+      if (uploadedFiles.length > 0 && currentOrganization) {
+        const mediaService = createMediaService(currentOrganization.id)
         const uploadPromises = uploadedFiles.map(file => mediaService.uploadFile(file))
         mediaFiles = await Promise.all(uploadPromises)
       }
@@ -179,8 +187,11 @@ export function PostEditorForm({
           ...postData,
           status: data.scheduledAt ? 'scheduled' : 'draft' // Update status based on scheduling
         }) as Post
-        onPostUpdated?.()
         console.log('Post updated successfully:', savedPost)
+        // Add a small delay to ensure database update is committed before refreshing
+        setTimeout(() => {
+          onPostUpdated?.()
+        }, 100)
       } else {
         // Create new post
         savedPost = await apiService.createPost({
@@ -408,8 +419,8 @@ export function PostEditorForm({
             <textarea
               {...register('content', { required: 'Content is required' })}
               placeholder="Write your post content..."
-              rows={8}
-              className="input resize-none"
+              rows={12}
+              className="input resize-y min-h-[200px]"
               disabled={isLoading}
             />
             <div className="flex justify-between text-xs text-muted-foreground">

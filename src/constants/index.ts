@@ -240,3 +240,6 @@ export const FEATURE_FLAGS = {
   ENABLE_EXPORT: true,
   ENABLE_IMPORT: true
 } as const
+
+// Export new UI constants
+export * from './ui'

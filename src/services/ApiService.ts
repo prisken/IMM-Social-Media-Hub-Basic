@@ -16,18 +16,14 @@ export class ApiService {
       try {
         const session = JSON.parse(authSession)
         this.organizationId = session.organizationId
-        console.log('ApiService initialized with organization ID:', this.organizationId)
       } catch (error) {
         console.error('Failed to parse auth session:', error)
       }
-    } else {
-      console.log('No auth session found during ApiService initialization')
     }
   }
 
   setOrganizationId(organizationId: string) {
     this.organizationId = organizationId
-    console.log('ApiService organization ID updated to:', this.organizationId)
   }
 
   // Method to reinitialize from localStorage (useful when auth state changes)
@@ -45,8 +41,6 @@ export class ApiService {
       this.reinitializeFromStorage()
       
       if (!this.organizationId) {
-        console.error('Organization not set in ApiService. Current organizationId:', this.organizationId)
-        console.error('Auth session:', localStorage.getItem('auth_session'))
         throw new Error('Organization not set')
       }
     }
@@ -102,9 +96,11 @@ export class ApiService {
   // Category API
   async getCategories(): Promise<Category[]> {
     this.ensureOrganizationSet()
-    console.log('ApiService.getCategories: Calling databaseService.getCategories with organizationId:', this.organizationId)
-    const categories = await databaseService.getCategories(this.organizationId!)
-    console.log('ApiService.getCategories: Received categories from database:', categories)
+    
+    // Ensure database is initialized for this organization
+    await databaseService.initializeDatabase(this.organizationId!)
+    
+    const categories = await databaseService.getCategories()
     return categories
   }
 
@@ -131,7 +127,11 @@ export class ApiService {
 
   // Topic API
   async getTopics(categoryId?: string): Promise<Topic[]> {
+    this.ensureOrganizationSet()
+    
     if (categoryId) {
+      // Ensure database is initialized for this organization
+      await databaseService.initializeDatabase(this.organizationId!)
       return await databaseService.getTopicsByCategory(categoryId)
     }
     
@@ -175,9 +175,7 @@ export class ApiService {
   } = {}): Promise<Post[]> {
     this.ensureOrganizationSet()
     
-    console.log('ApiService.getPosts: Calling databaseService.getPosts with organizationId:', this.organizationId)
     let posts = await databaseService.getPosts(filters, this.organizationId!)
-    console.log('ApiService.getPosts: Received posts from database:', posts)
     
     // Apply search filter if provided
     if (filters.search) {

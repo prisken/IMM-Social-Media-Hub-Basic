@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { PostPreview } from './PostPreview'
-import { CalendarPreview } from './CalendarPreview'
+import { OptimizedCalendarPreview } from './OptimizedCalendarPreview'
 import { EmptyPreview } from './EmptyPreview'
 import { FileText, Calendar as CalendarIcon } from 'lucide-react'
 
@@ -58,7 +58,7 @@ export function PreviewWindow({ selectedPostId, currentView, postRefreshTrigger,
             transition={{ duration: 0.3 }}
             className="h-full"
           >
-            <CalendarPreview 
+            <OptimizedCalendarPreview 
               selectedPostId={selectedPostId}
               onPostSelect={onPostSelect}
               postRefreshTrigger={postRefreshTrigger}

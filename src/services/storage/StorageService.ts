@@ -131,6 +131,26 @@ export class StorageService {
     }
   }
 
+  async deleteMediaFileFromDatabase(mediaFileId: string): Promise<void> {
+    try {
+      // Delete the media file record from the database
+      const result = await window.electronAPI.orgDb.execute(
+        this.organizationId,
+        'DELETE FROM media_files WHERE id = ?',
+        [mediaFileId]
+      )
+      
+      if (result.changes === 0) {
+        console.warn(`No media file found with ID: ${mediaFileId}`)
+      } else {
+        console.log(`Deleted media file record from database: ${mediaFileId}`)
+      }
+    } catch (error) {
+      console.error('Failed to delete media file from database:', error)
+      throw error
+    }
+  }
+
   async copyMediaFile(mediaFile: MediaFile, newPath: string): Promise<void> {
     try {
       await window.electronAPI.fs.copyFile(mediaFile.path, newPath)

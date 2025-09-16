@@ -36,7 +36,10 @@ export function CalendarPreview({ selectedPostId, onPostSelect, postRefreshTrigg
   }
 
   const handlePostUpdated = () => {
-    loadData()
+    // Add a small delay to ensure database update is committed before refreshing
+    setTimeout(() => {
+      loadData()
+    }, 100)
   }
 
   const loadData = async () => {

@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, Search, Filter, Grid, List, MoreVertical } from 'lucide-react'
 import { useAuth } from '@/components/Auth/AuthProvider'
+import { useData } from '@/context/DataContext'
 import { PostList } from './PostList'
 import { PostForm } from './PostForm'
 import { BulkOperations } from './BulkOperations'
 import { Post, Category, Topic } from '@/types'
 import { PostService } from '@/services/PostService'
-import { databaseService } from '@/services/database/DatabaseService'
 
 interface PostManagementProps {
   selectedPostId: string | null
@@ -17,10 +17,9 @@ interface PostManagementProps {
 
 export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: PostManagementProps) {
   const { currentOrganization } = useAuth()
-  const [posts, setPosts] = useState<Post[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [topics, setTopics] = useState<Topic[]>([])
-  const [loading, setLoading] = useState(true)
+  const { state, refreshData } = useData()
+  const { posts, categories, topics, loading } = state
+  
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null)
@@ -33,40 +32,6 @@ export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: 
 
   // Initialize services
   const postService = new PostService()
-
-  useEffect(() => {
-    if (currentOrganization) {
-      initializeServices()
-    }
-  }, [currentOrganization])
-
-  const initializeServices = async () => {
-    try {
-      // Ensure database is initialized for the current organization
-      await databaseService.initializeDatabase(currentOrganization!.id)
-      loadData()
-    } catch (error) {
-      console.error('Failed to initialize services:', error)
-    }
-  }
-
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      const [postsData, categoriesData, topicsData] = await Promise.all([
-        postService.getPosts(),
-        postService.getCategories(),
-        postService.getTopics()
-      ])
-      setPosts(postsData)
-      setCategories(categoriesData)
-      setTopics(topicsData)
-    } catch (error) {
-      console.error('Failed to load data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleCreatePost = () => {
     setEditingPost(null)
@@ -81,7 +46,7 @@ export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: 
   const handleDeletePost = async (postId: string) => {
     try {
       await postService.deletePost(postId)
-      await loadData()
+      await refreshData()
       if (selectedPostId === postId) {
         onPostSelect(null)
       }
@@ -108,13 +73,17 @@ export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: 
       }
       setShowPostForm(false)
       setEditingPost(null)
-      await loadData()
       
-      // Trigger preview refresh after saving
-      if (onPostRefresh) {
-        console.log('PostManagement: Triggering post preview refresh')
-        onPostRefresh()
-      }
+      // Add a small delay to ensure database update is committed before refreshing
+      setTimeout(async () => {
+        await refreshData()
+        
+        // Trigger preview refresh after saving
+        if (onPostRefresh) {
+          console.log('PostManagement: Triggering post preview refresh')
+          onPostRefresh()
+        }
+      }, 100)
     } catch (error) {
       console.error('Failed to save post:', error)
     }
@@ -125,7 +94,7 @@ export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: 
       await Promise.all(selectedPosts.map(id => postService.deletePost(id)))
       setSelectedPosts([])
       setShowBulkOperations(false)
-      await loadData()
+      await refreshData()
     } catch (error) {
       console.error('Failed to bulk delete posts:', error)
     }
@@ -301,7 +270,7 @@ export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: 
           topics={topics}
           selectedPostId={selectedPostId}
           viewMode={viewMode}
-          loading={loading}
+          loading={loading.posts}
           selectedPosts={selectedPosts}
           onPostSelect={handlePostSelect}
           onEditPost={handleEditPost}

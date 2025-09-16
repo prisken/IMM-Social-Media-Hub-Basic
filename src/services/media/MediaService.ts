@@ -39,7 +39,13 @@ export class MediaService {
 
   async deleteFile(mediaFile: MediaFile): Promise<void> {
     try {
+      // First delete the physical file
       await this.storageService.deleteMediaFile(mediaFile)
+      
+      // Then delete the database record
+      await this.storageService.deleteMediaFileFromDatabase(mediaFile.id)
+      
+      console.log(`Successfully deleted media file: ${mediaFile.originalName}`)
     } catch (error) {
       console.error('Failed to delete file:', error)
       throw error

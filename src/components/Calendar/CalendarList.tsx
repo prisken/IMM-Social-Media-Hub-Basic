@@ -1,8 +1,8 @@
-import React from 'react'
-import { motion } from 'framer-motion'
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
-import { Calendar, Clock, Tag } from 'lucide-react'
+import { Calendar, Clock, Tag, ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react'
 import { DraggablePostItem } from './DraggablePostItem'
 import { Post, Category, Topic } from '@/types'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -26,6 +26,13 @@ export function CalendarList({
   onPostSelect,
   onPostSchedule 
 }: CalendarListProps) {
+  const [collapsedSections, setCollapsedSections] = useState<{
+    unscheduled: boolean
+    scheduled: boolean
+  }>({
+    unscheduled: false,
+    scheduled: false
+  })
 
   const getCategory = (categoryId: string) => 
     categories.find(cat => cat.id === categoryId)
@@ -34,8 +41,29 @@ export function CalendarList({
     topics.find(topic => topic.id === topicId)
 
   // Separate posts by status
-  const draftPosts = posts.filter(post => !post.scheduledAt || post.status === 'draft')
+  const unscheduledPosts = posts.filter(post => !post.scheduledAt || post.status === 'draft')
   const scheduledPosts = posts.filter(post => post.scheduledAt && post.status === 'scheduled')
+
+  const toggleSection = (section: 'unscheduled' | 'scheduled') => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
+  }
+
+  const expandAll = () => {
+    setCollapsedSections({
+      unscheduled: false,
+      scheduled: false
+    })
+  }
+
+  const collapseAll = () => {
+    setCollapsedSections({
+      unscheduled: true,
+      scheduled: true
+    })
+  }
 
   if (loading) {
     return (
@@ -52,55 +80,118 @@ export function CalendarList({
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border">
-        <h3 className="font-semibold text-foreground">Posts</h3>
-        <p className="text-sm text-muted-foreground">Drag to schedule</p>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="font-semibold text-foreground">Posts</h3>
+            <p className="text-sm text-muted-foreground">Drag to schedule</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={expandAll}
+              className="p-1 hover:bg-muted rounded transition-colors"
+              title="Expand All"
+            >
+              <Maximize2 className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <button
+              onClick={collapseAll}
+              className="p-1 hover:bg-muted rounded transition-colors"
+              title="Collapse All"
+            >
+              <Minimize2 className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Total: {posts.length} posts
+        </div>
       </div>
 
       {/* Posts List */}
       <div className="flex-1 overflow-y-auto">
         <DndProvider backend={HTML5Backend}>
           <div className="p-4 space-y-4">
-            {/* Draft Posts */}
-            {draftPosts.length > 0 && (
+            {/* Unscheduled Posts */}
+            {unscheduledPosts.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                <button
+                  onClick={() => toggleSection('unscheduled')}
+                  className="w-full text-left text-sm font-medium text-foreground mb-3 flex items-center gap-2 hover:bg-muted p-2 rounded transition-colors"
+                >
+                  {collapsedSections.unscheduled ? (
+                    <ChevronRight className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
                   <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-                  Draft Posts ({draftPosts.length})
-                </h4>
-                <div className="space-y-2">
-                  {draftPosts.map((post) => (
-                    <DraggablePostItem
-                      key={post.id}
-                      post={post}
-                      category={getCategory(post.categoryId)}
-                      topic={getTopic(post.topicId)}
-                      isSelected={selectedPostId === post.id}
-                      onClick={() => onPostSelect(post.id)}
-                    />
-                  ))}
-                </div>
+                  Unscheduled Posts ({unscheduledPosts.length})
+                </button>
+                <AnimatePresence>
+                  {!collapsedSections.unscheduled && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-2">
+                        {unscheduledPosts.map((post) => (
+                          <DraggablePostItem
+                            key={post.id}
+                            post={post}
+                            category={getCategory(post.categoryId)}
+                            topic={getTopic(post.topicId)}
+                            isSelected={selectedPostId === post.id}
+                            onClick={() => onPostSelect(post.id)}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 
             {/* Scheduled Posts */}
             {scheduledPosts.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                <button
+                  onClick={() => toggleSection('scheduled')}
+                  className="w-full text-left text-sm font-medium text-foreground mb-3 flex items-center gap-2 hover:bg-muted p-2 rounded transition-colors"
+                >
+                  {collapsedSections.scheduled ? (
+                    <ChevronRight className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
                   <div className="w-2 h-2 bg-blue-500 rounded-full" />
                   Scheduled Posts ({scheduledPosts.length})
-                </h4>
-                <div className="space-y-2">
-                  {scheduledPosts.map((post) => (
-                    <DraggablePostItem
-                      key={post.id}
-                      post={post}
-                      category={getCategory(post.categoryId)}
-                      topic={getTopic(post.topicId)}
-                      isSelected={selectedPostId === post.id}
-                      onClick={() => onPostSelect(post.id)}
-                    />
-                  ))}
-                </div>
+                </button>
+                <AnimatePresence>
+                  {!collapsedSections.scheduled && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-2">
+                        {scheduledPosts.map((post) => (
+                          <DraggablePostItem
+                            key={post.id}
+                            post={post}
+                            category={getCategory(post.categoryId)}
+                            topic={getTopic(post.topicId)}
+                            isSelected={selectedPostId === post.id}
+                            onClick={() => onPostSelect(post.id)}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 
@@ -124,7 +215,7 @@ export function CalendarList({
           <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-              <span>Draft</span>
+              <span>Unscheduled</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-blue-500 rounded-full" />

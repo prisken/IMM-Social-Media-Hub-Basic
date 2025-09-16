@@ -5,6 +5,7 @@ import { Building2, LogOut, Settings, User, ChevronDown, Plus, Trash2 } from 'lu
 import { AppOrganization } from '@/services/AuthService'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { SettingsModal } from './SettingsModal'
+import { PostSeedingButton } from '@/components/PostSeeding/PostSeedingButton'
 
 interface HeaderProps {
   currentView: 'posts' | 'calendar' | 'categories' | 'media'
@@ -242,6 +243,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
 
       {/* Right side - User actions */}
       <div className="flex items-center gap-2">
+        <PostSeedingButton />
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

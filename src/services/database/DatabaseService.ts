@@ -13,6 +13,7 @@ import {
 
 export class DatabaseService {
   private organizationId: string | null = null
+  private initializedOrganizations = new Set<string>()
 
   constructor() {
     this.initializeDatabase = this.initializeDatabase.bind(this)
@@ -21,7 +22,15 @@ export class DatabaseService {
 
   async initializeDatabase(organizationId: string): Promise<void> {
     try {
+      // Check if already initialized for this organization
+      if (this.initializedOrganizations.has(organizationId)) {
+        console.log(`Database already initialized for organization: ${organizationId}`)
+        this.organizationId = organizationId
+        return
+      }
+
       this.organizationId = organizationId
+      this.initializedOrganizations.add(organizationId)
       console.log('Database initialized for organization:', organizationId)
     } catch (error) {
       console.error('Failed to initialize database:', error)
@@ -431,9 +440,9 @@ export class DatabaseService {
     
     const updated = { ...existing, ...updates }
     await this.execute(
-      `UPDATE posts SET title = ?, content = ?, hashtags = ?, platform = ?, type = ?, status = ?, scheduled_at = ?, published_at = ?, metadata = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE posts SET title = ?, content = ?, category_id = ?, topic_id = ?, hashtags = ?, platform = ?, type = ?, status = ?, scheduled_at = ?, published_at = ?, metadata = ?, updated_at = ? WHERE id = ?`,
       [
-        updated.title, updated.content, JSON.stringify(updated.hashtags),
+        updated.title, updated.content, updated.categoryId, updated.topicId, JSON.stringify(updated.hashtags),
         updated.platform, updated.type, updated.status, updated.scheduledAt || null, updated.publishedAt || null,
         JSON.stringify(updated.metadata), new Date().toISOString(), id
       ]

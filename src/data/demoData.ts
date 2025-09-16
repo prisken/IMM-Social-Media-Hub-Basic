@@ -283,3 +283,37 @@ export const demoMediaFiles: MediaFile[] = [
     }
   }
 ]
+
+// Function to get all demo data
+export function getDemoData() {
+  return {
+    organization: demoOrganization,
+    user: demoUser,
+    categories: demoCategories,
+    topics: demoTopics,
+    posts: demoPosts,
+    mediaFiles: demoMediaFiles
+  }
+}
+
+// Seeding presets for common scenarios
+export const seedingPresets = {
+  basic: {
+    platforms: ['instagram', 'facebook', 'twitter'] as const,
+    postTypes: ['text', 'image'] as const,
+    statuses: ['draft', 'scheduled'] as const,
+    count: 10
+  },
+  comprehensive: {
+    platforms: ['instagram', 'facebook', 'twitter', 'linkedin', 'tiktok'] as const,
+    postTypes: ['text', 'image', 'video', 'carousel', 'story'] as const,
+    statuses: ['draft', 'scheduled', 'published'] as const,
+    count: 25
+  },
+  testing: {
+    platforms: ['instagram', 'facebook'] as const,
+    postTypes: ['text', 'image'] as const,
+    statuses: ['draft'] as const,
+    count: 5
+  }
+}

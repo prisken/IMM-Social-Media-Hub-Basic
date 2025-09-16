@@ -1,5 +1,6 @@
 import { Organization, User, AuthState } from '@/types'
 import { databaseService } from './database/DatabaseService'
+import { apiService } from './ApiService'
 
 export interface AppUser {
   id: string
@@ -51,14 +52,11 @@ export class AuthService {
           const session = JSON.parse(savedSession)
           
           if (session && session.userId && session.organizationId) {
-            console.log('✅ Session found, attempting to validate')
             await this.validateSession(session)
           } else {
-            console.log('🚨 Invalid session data')
             localStorage.removeItem('auth_session')
           }
         } catch (parseError) {
-          console.log('🚨 Failed to parse session data:', parseError)
           localStorage.removeItem('auth_session')
         }
       }
@@ -71,7 +69,6 @@ export class AuthService {
 
   private async validateSession(session: { userId: string; organizationId: string }): Promise<void> {
     try {
-      console.log('🔍 Validating session:', session)
       this.updateAuthState({ loading: true })
       
       if (typeof window !== 'undefined' && window.electronAPI) {
@@ -88,9 +85,12 @@ export class AuthService {
           // Initialize database service for this organization
           await databaseService.initializeDatabase(session.organizationId)
           
+          // Update ApiService with the organization ID
+          apiService.setOrganizationId(session.organizationId)
+          
           // Initialize default data (categories, topics) if needed
           const { DataInitializationService } = await import('./DataInitializationService')
-          await DataInitializationService.initializeDefaultData()
+          await DataInitializationService.initializeDefaultData(session.organizationId)
           
           // Get user info (we'll get it from the organizations query)
           const userInfo = {
@@ -122,7 +122,6 @@ export class AuthService {
 
   async login(name: string, password: string): Promise<AppAuthState> {
     try {
-      console.log('🔍 Login attempt with name:', name)
       this.updateAuthState({ loading: true, error: null })
       
       if (typeof window === 'undefined' || !window.electronAPI) {
@@ -163,6 +162,12 @@ export class AuthService {
         // Create organization database if it doesn't exist
         await window.electronAPI.createOrganizationDb(currentOrg.id)
         
+        // Initialize database service for this organization
+        await databaseService.initializeDatabase(currentOrg.id)
+        
+        // Update ApiService with the organization ID
+        apiService.setOrganizationId(currentOrg.id)
+        
         this.updateAuthState({
           isAuthenticated: true,
           user: {
@@ -201,7 +206,6 @@ export class AuthService {
 
   async createUser(name: string, password: string): Promise<AppAuthState> {
     try {
-      console.log('🔍 Creating user:', name)
       this.updateAuthState({ loading: true, error: null })
       
       if (typeof window === 'undefined' || !window.electronAPI) {
@@ -248,7 +252,6 @@ export class AuthService {
 
   async createOrganization(name: string, description?: string): Promise<AppAuthState> {
     try {
-      console.log('🔍 Creating organization:', name)
       this.updateAuthState({ loading: true, error: null })
       
       if (!this.currentAuthState.user) {
@@ -302,7 +305,6 @@ export class AuthService {
 
   async switchOrganization(organizationId: string): Promise<AppAuthState> {
     try {
-      console.log('🔍 Switching to organization:', organizationId)
       this.updateAuthState({ loading: true, error: null })
       
       if (!this.currentAuthState.user) {
@@ -323,9 +325,12 @@ export class AuthService {
         // Initialize database service for this organization
         await databaseService.initializeDatabase(organizationId)
         
+        // Update ApiService with the new organization ID
+        apiService.setOrganizationId(organizationId)
+        
         // Initialize default data (categories, topics) if needed
         const { DataInitializationService } = await import('./DataInitializationService')
-        await DataInitializationService.initializeDefaultData()
+        await DataInitializationService.initializeDefaultData(organization.id)
       }
       
       this.updateAuthState({
