@@ -15,6 +15,7 @@ interface CalendarViewProps {
   selectedDate: Date
   selectedPostId: string | null
   loading: boolean
+  viewMode: 'month' | 'week' | 'day'
   onDateSelect: (date: Date) => void
   onPostSelect: (postId: string | null) => void
   onPostMove: (postId: string, newDate: Date) => Promise<void>
@@ -28,12 +29,12 @@ export function CalendarView({
   selectedDate, 
   selectedPostId, 
   loading,
+  viewMode,
   onDateSelect,
   onPostSelect, 
   onPostMove,
   onPostSchedule 
 }: CalendarViewProps) {
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
 
   const handlePostDrop = async (postId: string, date: Date) => {
     try {
@@ -181,33 +182,6 @@ export function CalendarView({
                   <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
-              
-              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('month')}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                    viewMode === 'month' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Month
-                </button>
-                <button
-                  onClick={() => setViewMode('week')}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                    viewMode === 'week' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Week
-                </button>
-                <button
-                  onClick={() => setViewMode('day')}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                    viewMode === 'day' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Day
-                </button>
-              </div>
             </div>
           </div>
           {/* Day Headers */}
@@ -220,7 +194,7 @@ export function CalendarView({
           </div>
 
           {/* Calendar Grid */}
-          <div className="flex-1 grid grid-cols-7 grid-rows-6">
+          <div className="flex-1 grid grid-cols-7 grid-rows-6 min-h-0 auto-rows-fr">
             {days.map((day, index) => (
               <DroppableCalendarDay
                 key={index}

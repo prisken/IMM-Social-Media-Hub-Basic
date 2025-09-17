@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Calendar, Clock, Grid, List, Plus } from 'lucide-react'
+import { Calendar, Clock, Grid, List, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { CalendarView } from './CalendarView'
 import { CalendarList } from './CalendarList'
@@ -21,6 +21,7 @@ export function CalendarManagement({ selectedPostId, onPostSelect, postRefreshTr
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
+  const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week' | 'day'>('month')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [draggedPost, setDraggedPost] = useState<Post | null>(null)
 
@@ -100,6 +101,54 @@ export function CalendarManagement({ selectedPostId, onPostSelect, postRefreshTr
     setSelectedDate(date)
   }
 
+  const goToPreviousPeriod = () => {
+    const newDate = new Date(selectedDate)
+    if (calendarViewMode === 'month') {
+      newDate.setMonth(newDate.getMonth() - 1)
+    } else if (calendarViewMode === 'week') {
+      newDate.setDate(newDate.getDate() - 7)
+    } else {
+      newDate.setDate(newDate.getDate() - 1)
+    }
+    setSelectedDate(newDate)
+  }
+
+  const goToNextPeriod = () => {
+    const newDate = new Date(selectedDate)
+    if (calendarViewMode === 'month') {
+      newDate.setMonth(newDate.getMonth() + 1)
+    } else if (calendarViewMode === 'week') {
+      newDate.setDate(newDate.getDate() + 7)
+    } else {
+      newDate.setDate(newDate.getDate() + 1)
+    }
+    setSelectedDate(newDate)
+  }
+
+  const goToToday = () => {
+    setSelectedDate(new Date())
+  }
+
+  const formatDateHeader = () => {
+    if (calendarViewMode === 'month') {
+      return selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    } else if (calendarViewMode === 'week') {
+      const startOfWeek = new Date(selectedDate)
+      startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay())
+      const endOfWeek = new Date(startOfWeek)
+      endOfWeek.setDate(startOfWeek.getDate() + 6)
+      
+      return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    } else {
+      return selectedDate.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric' 
+      })
+    }
+  }
+
   const getCategory = (categoryId: string) => 
     categories.find(cat => cat.id === categoryId)
   
@@ -116,8 +165,8 @@ export function CalendarManagement({ selectedPostId, onPostSelect, postRefreshTr
     })
   }
 
-  // Get unscheduled posts
-  const unscheduledPosts = posts.filter(post => !post.scheduledAt || post.status === 'draft')
+  // Get unscheduled posts - consistent with other components
+  const unscheduledPosts = posts.filter(post => !post.scheduledAt)
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -138,31 +187,95 @@ export function CalendarManagement({ selectedPostId, onPostSelect, postRefreshTr
         </div>
 
         {/* View Controls */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-                viewMode === 'calendar' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Calendar
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-                viewMode === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <List className="w-4 h-4" />
-              List
-            </button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+                  viewMode === 'calendar' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                Calendar
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+                  viewMode === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                List
+              </button>
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              {unscheduledPosts.length} unscheduled posts
+            </div>
           </div>
 
-          <div className="text-sm text-muted-foreground">
-            {unscheduledPosts.length} unscheduled posts
-          </div>
+          {/* Calendar Navigation - Only show when in calendar view */}
+          {viewMode === 'calendar' && (
+            <div className="flex items-center gap-4">
+              {/* Navigation Controls */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goToPreviousPeriod}
+                  className="p-2 hover:bg-muted rounded-md transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                
+                <button
+                  onClick={goToToday}
+                  className="px-3 py-1 text-sm bg-muted hover:bg-muted/80 rounded-md transition-colors"
+                >
+                  Today
+                </button>
+                
+                <button
+                  onClick={goToNextPeriod}
+                  className="p-2 hover:bg-muted rounded-md transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Date Header */}
+              <div className="text-lg font-semibold text-foreground">
+                {formatDateHeader()}
+              </div>
+
+              {/* Calendar View Mode Controls */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <button
+                  onClick={() => setCalendarViewMode('month')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    calendarViewMode === 'month' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                  }`}
+                >
+                  Month
+                </button>
+                <button
+                  onClick={() => setCalendarViewMode('week')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    calendarViewMode === 'week' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  onClick={() => setCalendarViewMode('day')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    calendarViewMode === 'day' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
+                  }`}
+                >
+                  Day
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -192,6 +305,7 @@ export function CalendarManagement({ selectedPostId, onPostSelect, postRefreshTr
                 selectedDate={selectedDate}
                 selectedPostId={selectedPostId}
                 loading={loading}
+                viewMode={calendarViewMode}
                 onDateSelect={handleDateSelect}
                 onPostSelect={onPostSelect}
                 onPostMove={handlePostMove}

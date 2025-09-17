@@ -28,7 +28,7 @@ export function DroppableCalendarDay({
   // Handle null date (empty calendar cells)
   if (!date) {
     return (
-      <div className="border-r border-b border-border p-2 min-h-[120px] bg-muted/20" />
+      <div className="border-r border-b border-border p-2 h-full bg-muted/20 min-h-[120px]" />
     )
   }
 
@@ -68,7 +68,7 @@ export function DroppableCalendarDay({
   return (
     <motion.div
       ref={drop}
-      className={`border-r border-b border-border p-2 min-h-[120px] relative transition-all duration-200 ${
+      className={`border-r border-b border-border p-2 h-full min-h-[120px] relative transition-all duration-200 ${
         isCurrentMonth ? 'hover:bg-muted/50' : 'bg-muted/20'
       } ${isToday ? 'bg-primary/10' : ''} ${
         isOver && canDrop ? 'bg-primary/30 border-2 border-primary shadow-lg' : ''

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { useAuth } from '@/components/Auth/AuthProvider'
+import { useData } from '@/context/DataContext'
 import { PreviewWindow } from '../Preview/PreviewWindow'
 import { WorkingArea } from './WorkingArea'
 import { Header } from './Header'
@@ -13,9 +14,12 @@ export function MainLayout() {
   const [currentView, setCurrentView] = useState<'posts' | 'calendar' | 'categories' | 'media'>('posts')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   const [postRefreshTrigger, setPostRefreshTrigger] = useState(0)
+  const { refreshData } = useData()
 
-  const triggerPostRefresh = () => {
+  const triggerPostRefresh = async () => {
     setPostRefreshTrigger(prev => prev + 1)
+    // Also refresh the DataContext to ensure all data is up to date
+    await refreshData()
   }
   
   return (
@@ -26,6 +30,7 @@ export function MainLayout() {
           <Header 
             currentView={currentView}
             onViewChange={setCurrentView}
+            onPostRefresh={triggerPostRefresh}
           />
 
           {/* Main Content - Split Screen Layout */}

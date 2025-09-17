@@ -3,15 +3,27 @@ import {
   AIContentPlan, 
   AIPostPreview, 
   AIDirectiveContext, 
-  AIClarificationQuestion, 
   AIResponse,
   Post,
-  Category,
-  Topic,
   SocialPlatform,
-  PostType
+  PostType,
+  AISchedulingRecommendation,
+  PostMetadata
 } from '@/types'
 import { apiService } from '@/services/ApiService'
+
+// Extend Window interface for electronAPI
+declare global {
+  interface Window {
+    electronAPI?: {
+      ollama?: {
+        checkStatus: () => Promise<{ available: boolean; error?: string }>
+        getModels: () => Promise<{ models: any[]; error?: string }>
+        generate: (model: string, prompt: string) => Promise<{ response: string; error?: string }>
+      }
+    }
+  }
+}
 
 export class AIService {
   private static instance: AIService
@@ -219,8 +231,6 @@ REASONING: [your detailed reasoning here]`
       contentFocus: string[]
     },
     organizationId: string,
-    categories: Category[],
-    topics: Topic[],
     onProgress?: (current: number, total: number, action: string) => void
   ): Promise<AIContentPlan> {
     console.log('🚀 Starting form-based post generation', formData)
@@ -236,16 +246,15 @@ REASONING: [your detailed reasoning here]`
     }
 
     // Create content plan
-    const plan = await this.generateContentPlan(organizationId, categories, topics)
+    const plan = await this.generateContentPlan(organizationId)
+    
+    // Normalize progress callback to avoid runtime TypeError if a non-function is passed
+    const progressCallback = typeof onProgress === 'function' ? onProgress : undefined
     
     // Generate posts with progress tracking
     const posts = await this.generatePostsWithProgress(
       plan,
-      categories,
-      topics,
-      formData.selectedCategories,
-      formData.selectedTopics,
-      onProgress
+      progressCallback
     )
     
     plan.posts = posts
@@ -260,10 +269,6 @@ REASONING: [your detailed reasoning here]`
    */
   private async generatePostsWithProgress(
     plan: AIContentPlan,
-    categories: Category[],
-    topics: Topic[],
-    selectedCategories: string[],
-    selectedTopics: string[],
     onProgress?: (current: number, total: number, action: string) => void
   ): Promise<AIPostPreview[]> {
     const posts: AIPostPreview[] = []
@@ -272,30 +277,24 @@ REASONING: [your detailed reasoning here]`
     console.log(`Generating ${maxPosts} posts with progress tracking`)
     
     const dates = this.generatePostDates(plan.dateRange, maxPosts)
-    
-    // Filter categories and topics based on selection
-    const filteredCategories = categories.filter(cat => 
-      selectedCategories.length === 0 || selectedCategories.includes(cat.id)
-    )
-    const filteredTopics = topics.filter(topic => 
-      selectedTopics.length === 0 || selectedTopics.includes(topic.id)
-    )
 
     for (let i = 0; i < maxPosts; i++) {
-      onProgress?.(i, maxPosts, 'Generating post content')
+      if (typeof onProgress === 'function') {
+        onProgress(i, maxPosts, 'Generating post content')
+      }
       
       const post: AIPostPreview = {
         id: `post-${Date.now()}-${i}`,
         title: `Generated Post ${i + 1}`,
         content: await this.generatePostContent(plan, i),
-        categoryId: this.selectCategory(filteredCategories, i),
-        topicId: this.selectTopic(filteredTopics, filteredCategories, i),
+        categoryId: '',
+        topicId: '',
         platform: plan.platform,
-        type: 'post',
+        type: 'post' as PostType,
         scheduledAt: dates[i],
         hashtags: this.generateHashtags(plan),
-        callToAction: this.generateCallToAction(plan),
-        estimatedEngagement: this.estimateEngagement(plan, i),
+        callToAction: this.generateCallToAction(),
+        estimatedEngagement: this.estimateEngagement(i),
         reasoning: this.generateReasoning(plan, i)
       }
       posts.push(post)
@@ -304,7 +303,9 @@ REASONING: [your detailed reasoning here]`
       await new Promise(resolve => setTimeout(resolve, 100))
     }
     
-    onProgress?.(maxPosts, maxPosts, 'Scheduling posts')
+    if (typeof onProgress === 'function') {
+      onProgress(maxPosts, maxPosts, 'Scheduling posts')
+    }
     
     return posts
   }
@@ -400,10 +401,7 @@ REASONING: [your detailed reasoning here]`
    * Process user directive with true conversational AI
    */
   public async processDirective(
-    userMessage: string, 
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
+    userMessage: string
   ): Promise<AIResponse> {
     // Add user message to conversation history
     this.addMessage('user', userMessage)
@@ -415,7 +413,7 @@ REASONING: [your detailed reasoning here]`
     console.log('🎯 Updated current context:', this.currentContext)
 
     // Build conversation context for the AI
-    const conversationContext = this.buildConversationContext(organizationId, categories, topics)
+    const conversationContext = this.buildConversationContext()
     
     // Send to AI model for natural response
     const aiResponse = await this.getAIResponse(conversationContext, userMessage)
@@ -430,13 +428,7 @@ REASONING: [your detailed reasoning here]`
     console.log('AI response processed successfully, returning message')
     return {
       message: aiResponse.message,
-      action: aiResponse.action || 'clarify'
-    }
-    
-    console.log('AI response processed successfully, returning message')
-    return {
-      message: aiResponse.message,
-      action: aiResponse.action || 'clarify'
+      action: (aiResponse.action || 'clarify') as 'clarify' | 'preview' | 'confirm' | 'create' | 'error' | 'success'
     }
   }
 
@@ -445,16 +437,14 @@ REASONING: [your detailed reasoning here]`
    */
   public async handleConfirmation(
     confirmation: string,
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
+    organizationId: string
   ): Promise<AIResponse> {
     this.addMessage('user', confirmation)
 
     if (confirmation.toLowerCase().includes('create') || confirmation.toLowerCase().includes('yes')) {
       // Create the posts
-      const posts = await this.createPostsFromPlan(organizationId, categories, topics)
-      const successMessage = this.buildSuccessMessage(posts)
+      const posts = await this.createPostsFromPlan(organizationId)
+      const successMessage = `🎉 **Posts created successfully!**\n\nI've created ${posts.length} posts and added them to your calendar. You can review and edit them in your Post Management section.`
       this.addMessage('ai', successMessage)
 
       return {
@@ -464,137 +454,27 @@ REASONING: [your detailed reasoning here]`
       }
     } else if (confirmation.toLowerCase().includes('edit') || confirmation.toLowerCase().includes('change')) {
       // Handle editing requests
-      return this.handleEditRequest(confirmation, organizationId, categories, topics)
+      return {
+        message: 'I understand you want to edit some posts. Please specify which posts and what changes you\'d like to make.',
+        action: 'clarify'
+      }
     } else if (confirmation.toLowerCase().includes('add')) {
       // Handle adding more posts
-      return this.handleAddRequest(confirmation, organizationId, categories, topics)
+      return {
+        message: 'I understand you want to add more posts. How many additional posts would you like and what type of content?',
+        action: 'clarify'
+      }
     } else if (confirmation.toLowerCase().includes('remove')) {
       // Handle removing posts
-      return this.handleRemoveRequest(confirmation, organizationId, categories, topics)
+      return {
+        message: 'I understand you want to remove some posts. Please specify which posts you\'d like to remove.',
+        action: 'clarify'
+      }
     }
 
     return {
       message: 'I didn\'t understand your request. Please try again.',
       action: 'clarify'
-    }
-  }
-
-  /**
-   * Check if the user message is a response to a clarification question
-   */
-  private isClarificationResponse(message: string): boolean {
-    // Check if the last AI message was a clarification
-    const lastMessage = this.conversationHistory[this.conversationHistory.length - 1]
-    return lastMessage?.type === 'ai' && lastMessage.metadata?.isClarification === true
-  }
-
-  /**
-   * Update context based on clarification response
-   */
-  private updateContextFromClarification(message: string): void {
-    const lowerMessage = message.toLowerCase()
-    
-    // Check for approval responses first
-    const approvalPhrases = [
-      'ok', 'okay', 'good', 'fine', 'great', 'perfect', 'sounds good', 
-      'that works', 'that\'s fine', 'your plan is ok', 'your plan is good',
-      'i agree', 'yes', 'sure', 'approved', 'accepted', 'confirmed'
-    ]
-    
-    const isApproval = approvalPhrases.some(phrase => lowerMessage.includes(phrase))
-    
-    if (isApproval) {
-      // User approved the recommendations, use the recommended values
-      this.useRecommendedValues()
-      return
-    }
-    
-    // Handle multiple choice responses (e.g., "1, 3" or "2")
-    const choiceMatch = message.match(/^[\d,\s]+$/)
-    if (choiceMatch) {
-      this.parseMultipleChoiceResponse(message)
-      return
-    }
-    
-    // Extract platform from response
-    const platforms: SocialPlatform[] = ['instagram', 'facebook', 'twitter', 'linkedin', 'tiktok']
-    for (const platform of platforms) {
-      if (lowerMessage.includes(platform)) {
-        this.currentContext.platform = platform
-        break
-      }
-    }
-    
-    // Extract date range from response
-    const datePatterns = [
-      /from\s+(\w+\s+\d+)\s+to\s+(\w+\s+\d+)/i,
-      /(\w+\s+\d+)\s+to\s+(\w+\s+\d+)/i,
-      /next\s+week/i,
-      /this\s+week/i,
-      /next\s+month/i,
-      /(\d+)\s+days/i
-    ]
-    
-    for (const pattern of datePatterns) {
-      const match = message.match(pattern)
-      if (match) {
-        this.currentContext.dateRange = this.parseDateRange(match[0])
-        break
-      }
-    }
-    
-    // Extract post count from response (handle various formats)
-    const countPatterns = [
-      /(\d+)\s+total\s+posts?/i,
-      /(\d+)\s+posts?/i,
-      /total[:\s]+(\d+)/i,
-      /(\d+)\s+for\s+all\s+platforms?/i
-    ]
-    
-    for (const pattern of countPatterns) {
-      const match = message.match(pattern)
-      if (match) {
-        this.currentContext.postCount = parseInt(match[1])
-        break
-      }
-    }
-    
-    // Handle platform-specific counts like "10 for facebook, 10 for linkedin"
-    const platformCountMatch = message.match(/(\d+)\s+for\s+(facebook|instagram|twitter|linkedin|tiktok)/i)
-    if (platformCountMatch) {
-      // If user provides platform-specific counts, calculate total
-      const platformCounts = message.match(/(\d+)\s+for\s+(facebook|instagram|twitter|linkedin|tiktok)/gi)
-      if (platformCounts) {
-        const total = platformCounts.reduce((sum, match) => {
-          const numMatch = match.match(/(\d+)/)
-          return sum + (numMatch ? parseInt(numMatch[1]) : 0)
-        }, 0)
-        this.currentContext.postCount = total
-      }
-    }
-    
-    // Extract brand/company name
-    if (lowerMessage.includes('brand') || lowerMessage.includes('company')) {
-      // Try to extract the brand name from the response
-      const brandMatch = message.match(/(?:brand|company)[\s:]+(.+)/i)
-      if (brandMatch) {
-        this.currentContext.brand = brandMatch[1].trim()
-      }
-    }
-    
-    // Extract target audience
-    if (lowerMessage.includes('audience') || lowerMessage.includes('target')) {
-      const audienceMatch = message.match(/(?:audience|target)[\s:]+(.+)/i)
-      if (audienceMatch) {
-        this.currentContext.targetAudience = audienceMatch[1].trim()
-      }
-    }
-    
-    // Extract content types
-    const contentTypes = ['educational', 'promotional', 'motivational', 'behind-the-scenes', 'user-generated', 'tips', 'tutorials']
-    const foundTypes = contentTypes.filter(type => lowerMessage.includes(type))
-    if (foundTypes.length > 0) {
-      this.currentContext.contentTypes = foundTypes
     }
   }
 
@@ -798,41 +678,11 @@ REASONING: [your detailed reasoning here]`
     return context
   }
 
-  /**
-   * Get missing information for content creation
-   */
-  private getMissingInformation(): string[] {
-    const missing: string[] = []
-
-    // Only require essential information
-    if (!this.currentContext.platform) {
-      missing.push('platform')
-    }
-    if (!this.currentContext.dateRange) {
-      missing.push('dateRange')
-    }
-    if (!this.currentContext.postCount) {
-      missing.push('postCount')
-    }
-
-    // Make these optional - provide defaults if missing
-    if (!this.currentContext.brand) {
-      // Don't add to missing - we'll use a default
-    }
-    if (!this.currentContext.targetAudience) {
-      // Don't add to missing - we'll use a default
-    }
-    if (!this.currentContext.contentTypes || this.currentContext.contentTypes.length === 0) {
-      // Don't add to missing - we'll use defaults
-    }
-
-    return missing
-  }
 
   /**
    * Build conversation context for AI model (optimized for speed)
    */
-  private buildConversationContext(organizationId: string, categories: Category[], topics: Topic[]): string {
+  private buildConversationContext(): string {
     // Keep context minimal for faster responses
     let context = `You are an AI social media assistant. Help users create content calendars.
 
@@ -913,919 +763,25 @@ RECENT CONVERSATION:`
     }
   }
 
-  /**
-   * Analyze what the user is trying to accomplish
-   */
-  private analyzeUserIntent(message: string): {
-    intent: 'create_calendar' | 'get_info' | 'modify_plan' | 'generate_posts' | 'clarify'
-    confidence: number
-    missingInfo: string[]
-    hasBusinessContext: boolean
-  } {
-    const lowerMessage = message.toLowerCase()
-    const bc = this.currentContext.businessContext
-    const hasBusinessInfo = !!(bc?.companyName || bc?.mission || bc?.vision || bc?.industry || bc?.services?.length)
-    
-    // Determine intent
-    let intent: 'create_calendar' | 'get_info' | 'modify_plan' | 'generate_posts' | 'clarify' = 'get_info'
-    let confidence = 0.5
 
-    if (lowerMessage.includes('calendar') || lowerMessage.includes('schedule') || lowerMessage.includes('posts')) {
-      intent = 'create_calendar'
-      confidence = 0.8
-    } else if (lowerMessage.includes('generate') || lowerMessage.includes('create posts')) {
-      intent = 'generate_posts'
-      confidence = 0.9
-    } else if (lowerMessage.includes('change') || lowerMessage.includes('modify') || lowerMessage.includes('edit')) {
-      intent = 'modify_plan'
-      confidence = 0.7
-    } else if (hasBusinessInfo && (this.currentContext.platform || this.currentContext.platforms)) {
-      intent = 'create_calendar'
-      confidence = 0.9
-    }
 
-    // Check what information we have
-    const missingInfo: string[] = []
-    if (!this.currentContext.platform && !this.currentContext.platforms) missingInfo.push('platforms')
-    if (!this.currentContext.dateRange) missingInfo.push('dateRange')
-    if (!this.currentContext.postCount) missingInfo.push('postCount')
 
-    return {
-      intent,
-      confidence,
-      missingInfo,
-      hasBusinessContext: hasBusinessInfo
-    }
-  }
 
-  /**
-   * Generate intelligent response based on system knowledge
-   */
-  private async generateIntelligentResponse(
-    userIntent: { intent: string; confidence: number; missingInfo: string[]; hasBusinessContext: boolean },
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
-  ): Promise<AIResponse> {
-    
-    const { intent, missingInfo, hasBusinessContext } = userIntent
 
-    // If we don't have business context, ask for it naturally
-    if (!hasBusinessContext) {
-      const message = this.buildNaturalBusinessInfoRequest()
-      this.addMessage('ai', message, { isQuestion: true })
-      return { message, action: 'clarify' }
-    }
 
-    // If we have business context but missing technical details, provide smart defaults
-    if (hasBusinessContext && missingInfo.length > 0) {
-      this.autoPopulateTechnicalParameters()
-      const message = this.buildSmartRecommendationMessage()
-      this.addMessage('ai', message, { isQuestion: true, hasRecommendations: true })
-      return { message, action: 'clarify' }
-    }
 
-    // If we have everything, create the content plan
-    if (hasBusinessContext && missingInfo.length === 0) {
-      const contentPlan = await this.generateContentPlan(organizationId, categories, topics)
-      const message = this.buildContentPlanPreview(contentPlan)
-      this.addMessage('ai', message, { isQuestion: true, contentPlan })
-      return { message, contentPlan, action: 'preview' }
-    }
 
-    // Fallback
-    const message = "I'd be happy to help you create a social media content calendar! Could you tell me a bit about your business and what you're looking to accomplish?"
-    this.addMessage('ai', message, { isQuestion: true })
-    return { message, action: 'clarify' }
-  }
 
-  /**
-   * Handle user response to previous question
-   */
-  private async handleUserResponse(
-    userMessage: string, 
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
-  ): Promise<AIResponse> {
-    const lowerMessage = userMessage.toLowerCase()
-    const lastMessage = this.conversationHistory[this.conversationHistory.length - 1]
 
-    // Check if user is confirming recommendations
-    if (lastMessage.metadata?.hasRecommendations && 
-        (lowerMessage.includes('yes') || lowerMessage.includes('ok') || lowerMessage.includes('create') || lowerMessage.includes('generate'))) {
-      
-      const contentPlan = await this.generateContentPlan(organizationId, categories, topics)
-      const message = this.buildContentPlanPreview(contentPlan)
-      this.addMessage('ai', message, { isQuestion: true, contentPlan })
-      return { message, contentPlan, action: 'preview' }
-    }
 
-    // Check if user wants to generate posts
-    if (lastMessage.metadata?.contentPlan && 
-        (lowerMessage.includes('generate') || lowerMessage.includes('create posts') || lowerMessage.includes('yes'))) {
-      
-      const posts = await this.generatePosts(lastMessage.metadata.contentPlan, categories, topics)
-      lastMessage.metadata.contentPlan.posts = posts
-      
-      const successMessage = this.buildSuccessMessage(posts)
-      this.addMessage('ai', successMessage, { posts })
-      return { message: successMessage, contentPlan: lastMessage.metadata.contentPlan, action: 'success' }
-    }
 
-    // Check if user wants to modify something
-    if (lowerMessage.includes('change') || lowerMessage.includes('modify') || lowerMessage.includes('different')) {
-      this.parseTechnicalChanges(userMessage)
-      this.autoPopulateTechnicalParameters()
-      const message = this.buildSmartRecommendationMessage()
-      this.addMessage('ai', message, { isQuestion: true, hasRecommendations: true })
-      return { message, action: 'clarify' }
-    }
 
-    // Default: treat as new business information
-    const parsedContext = this.parseDirective(userMessage)
-    console.log('🎯 Parsed context from user message:', parsedContext)
-    this.currentContext = { ...this.currentContext, ...parsedContext }
-    console.log('🎯 Updated current context:', this.currentContext)
-    
-    const userIntent = this.analyzeUserIntent(userMessage)
-    return this.generateIntelligentResponse(userIntent, organizationId, categories, topics)
-  }
 
-  /**
-   * Step 1: Handle company information collection
-   */
-  private async handleStep1_CompanyInfo(userMessage: string, categories: Category[], topics: Topic[]): Promise<AIResponse> {
-    const bc = this.currentContext.businessContext
-    const hasBusinessInfo = !!(bc?.mission || bc?.vision || bc?.industry || bc?.services?.length)
 
-    if (hasBusinessInfo) {
-      // Move to step 2 (understanding confirmation)
-      return this.handleStep2_UnderstandingConfirmation(userMessage, categories, topics)
-    } else {
-      // Ask for company information
-      const message = `👋 Hi! I'm here to help you create an amazing social media content calendar.
 
-To get started, I'd love to learn about your business! Just tell me about your company in your own words - like you're explaining it to a friend.
 
-**I'm looking for things like:**
-- What your company does
-- Who you serve
-- What makes you special
-- Any goals you have
 
-**For example:**
-"IMM Limited is a production house that focuses on providing advertising services to business owners. We have a creative approach to online exposure plus seasonal advertising. I want a social media calendar for Facebook, Instagram, LinkedIn, and TikTok that gives my company great online exposure."
 
-Don't worry about being formal - just share what's important about your business! 🚀`
-
-      this.addMessage('ai', message, { step: 1 })
-      return {
-        message,
-        action: 'clarify'
-      }
-    }
-  }
-
-  /**
-   * Step 2: AI understanding confirmation
-   */
-  private async handleStep2_UnderstandingConfirmation(userMessage: string, categories: Category[], topics: Topic[]): Promise<AIResponse> {
-    const bc = this.currentContext.businessContext
-    const lowerMessage = userMessage.toLowerCase()
-
-    // Check if user is confirming understanding
-    if (lowerMessage.includes('yes') || lowerMessage.includes('correct') || lowerMessage.includes('right') || lowerMessage.includes('confirm')) {
-      this.currentContext.confirmedUnderstanding = true
-      return this.handleStep3_TechnicalForm(categories, topics)
-    } else if (lowerMessage.includes('no') || lowerMessage.includes('wrong') || lowerMessage.includes('incorrect')) {
-      // User says understanding is wrong, go back to step 1
-      this.currentContext.businessContext = undefined
-      this.currentContext.confirmedUnderstanding = false
-      return this.handleStep1_CompanyInfo(userMessage, categories, topics)
-    } else {
-      // Show AI's understanding for confirmation
-      const understandingMessage = this.buildUnderstandingSummary()
-      this.addMessage('ai', understandingMessage, { step: 2 })
-      return {
-        message: understandingMessage,
-        action: 'clarify'
-      }
-    }
-  }
-
-  /**
-   * Step 3: Technical form (auto-populated)
-   */
-  private async handleStep3_TechnicalForm(categories: Category[], topics: Topic[]): Promise<AIResponse> {
-    // Auto-populate technical parameters based on company info
-    this.autoPopulateTechnicalParameters()
-
-    const technicalForm = this.buildTechnicalForm()
-    const message = `📋 **Step 3: Technical Parameters (Auto-Populated)**
-
-Based on your company information, I've pre-filled the technical parameters:
-
-${technicalForm}
-
-**To proceed:**
-- Type "CONFIRM" to use these settings
-- Or provide specific changes (e.g., "Change platforms to Instagram only" or "Change to 50 posts")`
-
-    this.addMessage('ai', message, { step: 3, technicalForm: true })
-    return {
-      message,
-      action: 'clarify'
-    }
-  }
-
-  /**
-   * Step 4: Handle plan confirmation
-   */
-  private async handleStep4_PlanConfirmation(userMessage: string, organizationId: string, categories: Category[], topics: Topic[]): Promise<AIResponse> {
-    const lowerMessage = userMessage.toLowerCase()
-
-    if (lowerMessage.includes('confirm') || lowerMessage.includes('yes') || lowerMessage.includes('ok')) {
-      // User confirmed, generate the plan
-      this.currentPlan = await this.generateContentPlan(organizationId, categories, topics)
-      const previewMessage = this.buildStep4PreviewMessage(this.currentPlan)
-      
-      this.addMessage('ai', previewMessage, { step: 4, contentPlan: this.currentPlan })
-      return {
-        message: previewMessage,
-        contentPlan: this.currentPlan,
-        action: 'preview'
-      }
-    } else {
-      // User wants to make changes, parse the changes
-      this.parseTechnicalChanges(userMessage)
-      return this.handleStep3_TechnicalForm(categories, topics)
-    }
-  }
-
-  /**
-   * Step 5: Generate posts
-   */
-  private async handleStep5_GeneratePosts(organizationId: string, categories: Category[], topics: Topic[]): Promise<AIResponse> {
-    if (!this.currentPlan) {
-      throw new Error('No content plan available for generation')
-    }
-
-    // Generate the actual posts
-    const posts = await this.generatePosts(this.currentPlan, categories, topics)
-    this.currentPlan.posts = posts
-
-    const successMessage = this.buildSuccessMessage(posts)
-    this.addMessage('ai', successMessage, { step: 5, posts })
-
-    return {
-      message: successMessage,
-      contentPlan: this.currentPlan,
-      action: 'success'
-    }
-  }
-
-  /**
-   * Check if we have sufficient business context
-   */
-  private hasBusinessContext(): boolean {
-    const bc = this.currentContext.businessContext
-    // More lenient check - if we have any business information, we can proceed
-    return !!(bc?.companyName || bc?.mission || bc?.vision || bc?.industry || bc?.services?.length || this.currentContext.targetAudience)
-  }
-
-  /**
-   * Check if missing info is only technical details
-   */
-  private needsTechnicalDetails(missingInfo: string[]): boolean {
-    const technicalDetails = ['platform', 'dateRange', 'postCount']
-    return missingInfo.every(info => technicalDetails.includes(info))
-  }
-
-  /**
-   * Generate streamlined technical questions with multiple choice
-   */
-  private generateTechnicalQuestions(missingInfo: string[]): AIClarificationQuestion[] {
-    const questions: AIClarificationQuestion[] = []
-
-    if (missingInfo.includes('platform')) {
-      const platforms = this.currentContext.platforms || ['instagram', 'facebook', 'linkedin', 'tiktok']
-      questions.push({
-        id: 'platform',
-        question: 'Which platforms would you like me to create content for?',
-        type: 'multi-select',
-        options: platforms.map(p => p.charAt(0).toUpperCase() + p.slice(1)),
-        required: true,
-        context: 'Platform selection'
-      })
-    }
-
-    if (missingInfo.includes('dateRange')) {
-      questions.push({
-        id: 'dateRange',
-        question: 'What time period should I plan for?',
-        type: 'select',
-        options: [
-          'This week',
-          'Next week', 
-          'This month',
-          'Next month',
-          '3 months (Oct-Dec)',
-          '6 months',
-          'Custom range'
-        ],
-        required: true,
-        context: 'Time period'
-      })
-    }
-
-    if (missingInfo.includes('postCount')) {
-      const platforms = this.currentContext.platforms || [this.currentContext.platform || 'instagram']
-      const dateRange = this.currentContext.dateRange || this.getDefaultDateRange()
-      const totalRecommended = platforms.reduce((total, platform) => {
-        return total + this.calculateOptimalPostCount(platform, dateRange)
-      }, 0)
-
-      questions.push({
-        id: 'postCount',
-        question: 'How many posts would you like me to create?',
-        type: 'select',
-        options: [
-          `Recommended (${totalRecommended} posts)`,
-          'Light (50% of recommended)',
-          'Heavy (150% of recommended)',
-          'Custom number'
-        ],
-        required: true,
-        context: 'Post volume'
-      })
-    }
-
-    return questions
-  }
-
-  /**
-   * Build streamlined technical clarification message
-   */
-  private buildTechnicalClarificationMessage(questions: AIClarificationQuestion[]): string {
-    let message = `🎯 **Great! I understand your business context.**\n\n`
-    
-    // Show what we understood about their business
-    const bc = this.currentContext.businessContext
-    if (bc) {
-      message += `**I understand:**\n`
-      if (bc.industry) message += `- Industry: ${bc.industry}\n`
-      if (bc.services) message += `- Services: ${bc.services.join(', ')}\n`
-      if (bc.mission) message += `- Mission: ${bc.mission.substring(0, 100)}...\n`
-      message += `\n`
-    }
-
-    message += `**Now I just need a few quick technical details:**\n\n`
-
-    questions.forEach((question, index) => {
-      message += `${index + 1}. **${question.question}**\n`
-      if (question.options) {
-        question.options.forEach((option, optIndex) => {
-          message += `   ${optIndex + 1}. ${option}\n`
-        })
-      }
-      message += `\n`
-    })
-
-    message += `Just select the numbers (e.g., "1, 3" or "2") and I'll create your content plan!`
-    return message
-  }
-
-  /**
-   * Parse multiple choice responses (e.g., "1, 3" or "2")
-   */
-  private parseMultipleChoiceResponse(message: string): void {
-    const choices = message.split(/[,\s]+/).map(c => parseInt(c.trim())).filter(n => !isNaN(n))
-    
-    // Get the last AI message to understand what questions were asked
-    const lastMessage = this.conversationHistory[this.conversationHistory.length - 1]
-    if (!lastMessage?.metadata?.clarificationQuestions) return
-    
-    const questions = lastMessage.metadata.clarificationQuestions as AIClarificationQuestion[]
-    
-    questions.forEach((question, index) => {
-      const choiceIndex = choices[index] - 1 // Convert to 0-based index
-      if (choiceIndex >= 0 && choiceIndex < (question.options?.length || 0)) {
-        const selectedOption = question.options![choiceIndex]
-        
-        switch (question.id) {
-          case 'platform':
-            // Handle platform selection
-            if (selectedOption === 'All platforms') {
-              this.currentContext.platforms = ['instagram', 'facebook', 'linkedin', 'tiktok']
-              this.currentContext.platform = 'instagram' // Set primary platform
-            } else {
-              const platform = selectedOption.toLowerCase() as SocialPlatform
-              this.currentContext.platform = platform
-              this.currentContext.platforms = [platform]
-            }
-            break
-            
-          case 'dateRange':
-            // Handle date range selection
-            this.currentContext.dateRange = this.parseDateRangeFromOption(selectedOption)
-            break
-            
-          case 'postCount':
-            // Handle post count selection
-            this.currentContext.postCount = this.parsePostCountFromOption(selectedOption)
-            break
-        }
-      }
-    })
-  }
-
-  /**
-   * Parse date range from multiple choice option
-   */
-  private parseDateRangeFromOption(option: string): { start: string; end: string } {
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    
-    switch (option) {
-      case 'This week':
-        return {
-          start: now.toISOString().split('T')[0],
-          end: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        }
-      case 'Next week':
-        const nextWeekStart = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-        return {
-          start: nextWeekStart.toISOString().split('T')[0],
-          end: new Date(nextWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        }
-      case 'This month':
-        return {
-          start: new Date(currentYear, now.getMonth(), 1).toISOString().split('T')[0],
-          end: new Date(currentYear, now.getMonth() + 1, 0).toISOString().split('T')[0]
-        }
-      case 'Next month':
-        return {
-          start: new Date(currentYear, now.getMonth() + 1, 1).toISOString().split('T')[0],
-          end: new Date(currentYear, now.getMonth() + 2, 0).toISOString().split('T')[0]
-        }
-      case '3 months (Oct-Dec)':
-        return {
-          start: new Date(currentYear, 9, 1).toISOString().split('T')[0], // October
-          end: new Date(currentYear, 11, 31).toISOString().split('T')[0] // December
-        }
-      case '6 months':
-        return {
-          start: now.toISOString().split('T')[0],
-          end: new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        }
-      default:
-        return this.getDefaultDateRange()
-    }
-  }
-
-  /**
-   * Parse post count from multiple choice option
-   */
-  private parsePostCountFromOption(option: string): number {
-    const platforms = this.currentContext.platforms || [this.currentContext.platform || 'instagram']
-    const dateRange = this.currentContext.dateRange || this.getDefaultDateRange()
-    const baseRecommended = platforms.reduce((total, platform) => {
-      return total + this.calculateOptimalPostCount(platform, dateRange)
-    }, 0)
-    
-    if (option.includes('Recommended')) {
-      return baseRecommended
-    } else if (option.includes('Light')) {
-      return Math.ceil(baseRecommended * 0.5)
-    } else if (option.includes('Heavy')) {
-      return Math.ceil(baseRecommended * 1.5)
-    } else if (option.includes('Custom')) {
-      // For custom, we'll need to ask for the number
-      return baseRecommended
-    }
-    
-    return baseRecommended
-  }
-
-  /**
-   * Auto-populate technical parameters based on company info
-   */
-  private autoPopulateTechnicalParameters(): void {
-    const bc = this.currentContext.businessContext
-    
-    // Auto-detect platforms based on industry
-    if (bc?.industry === 'financial') {
-      this.currentContext.platforms = ['linkedin', 'facebook', 'instagram']
-      this.currentContext.platform = 'linkedin'
-    } else if (bc?.industry === 'technology') {
-      this.currentContext.platforms = ['linkedin', 'twitter', 'instagram']
-      this.currentContext.platform = 'linkedin'
-    } else if (bc?.industry === 'retail' || bc?.industry === 'food') {
-      this.currentContext.platforms = ['instagram', 'facebook', 'tiktok']
-      this.currentContext.platform = 'instagram'
-    } else {
-      this.currentContext.platforms = ['instagram', 'facebook', 'linkedin']
-      this.currentContext.platform = 'instagram'
-    }
-    
-    // Auto-set date range (default to 3 months)
-    this.currentContext.dateRange = {
-      start: new Date().toISOString().split('T')[0],
-      end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    }
-    
-    // Auto-calculate post count
-    const totalRecommended = this.currentContext.platforms.reduce((total, platform) => {
-      return total + this.calculateOptimalPostCount(platform, this.currentContext.dateRange!)
-    }, 0)
-    this.currentContext.postCount = totalRecommended
-    
-    // Set defaults
-    this.provideDefaults()
-  }
-
-  /**
-   * Build natural business info request
-   */
-  private buildNaturalBusinessInfoRequest(): string {
-    return `👋 Hi! I'm your AI assistant for creating social media content calendars.
-
-I can help you create a comprehensive content strategy that includes:
-- **Content Planning**: Generate posts tailored to your business
-- **Scheduling**: Optimize posting times for maximum engagement  
-- **Multi-Platform**: Support for Facebook, Instagram, LinkedIn, TikTok, and Twitter
-- **Business Alignment**: Content that matches your brand voice and goals
-
-To get started, I'd love to learn about your business! Just tell me:
-- What your company does
-- Who your customers are
-- What makes you unique
-- Any specific goals you have
-
-For example: "We're a financial planning firm that helps high-net-worth individuals with wealth management and estate planning. We want to build trust and educate our clients about financial strategies."
-
-What can you tell me about your business?`
-  }
-
-  /**
-   * Build smart recommendation message
-   */
-  private buildSmartRecommendationMessage(): string {
-    const bc = this.currentContext.businessContext
-    const platforms = this.currentContext.platforms || [this.currentContext.platform || 'instagram']
-    const dateRange = this.currentContext.dateRange
-    const postCount = this.currentContext.postCount
-
-    let message = `Perfect! I understand your business now. Based on what you've told me about ${bc?.companyName || 'your company'}, here's what I recommend:
-
-**🎯 Content Strategy for ${bc?.industry || 'your industry'}**
-- **Platforms**: ${platforms.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ')}
-- **Duration**: ${dateRange?.start} to ${dateRange?.end}
-- **Total Posts**: ${postCount} posts
-- **Target Audience**: ${this.currentContext.targetAudience || 'Your customers'}
-
-**💡 Why these recommendations?**
-- ${platforms.includes('linkedin') ? 'LinkedIn is perfect for professional content and B2B engagement' : ''}
-- ${platforms.includes('instagram') ? 'Instagram works great for visual storytelling and brand awareness' : ''}
-- ${platforms.includes('facebook') ? 'Facebook helps reach a broad audience and build community' : ''}
-- ${platforms.includes('tiktok') ? 'TikTok is excellent for reaching younger demographics' : ''}
-
-**📝 Content Focus:**
-Based on your mission "${bc?.mission?.substring(0, 100)}...", I'll create content that:
-- Builds trust and credibility
-- Educates your audience about ${bc?.industry || 'your industry'}
-- Showcases your expertise
-- Aligns with your brand values
-
-**Ready to create your content calendar?**
-Just say "yes" or "create it" and I'll generate ${postCount} tailored posts for your business!`
-
-    return message
-  }
-
-  /**
-   * Build content plan preview
-   */
-  private buildContentPlanPreview(plan: AIContentPlan): string {
-    const bc = this.currentContext.businessContext
-    let message = `🎉 **Your Content Calendar is Ready!**
-
-I've created a comprehensive content strategy for ${bc?.companyName || 'your business'}:
-
-**📊 Plan Summary:**
-- **${plan.totalPosts} posts** across ${plan.platforms?.join(', ') || plan.platform}
-- **Duration**: ${plan.dateRange.start} to ${plan.dateRange.end}
-- **Focus**: ${plan.contentFocus.join(', ')}
-
-**📝 Content Strategy:**
-Based on your mission "${bc?.mission?.substring(0, 80)}...", I've created content that:
-- Builds trust through educational posts
-- Showcases your expertise in ${bc?.industry || 'your industry'}
-- Engages your target audience of ${plan.targetAudience}
-- Maintains your brand voice: ${plan.brandVoice}
-
-**📅 Sample Posts Preview:**
-${plan.posts.slice(0, 3).map((post, index) => 
-  `${index + 1}. **${post.title}** (${post.platform})\n   ${post.content.substring(0, 100)}...`
-).join('\n\n')}
-
-**🚀 Ready to generate all ${plan.totalPosts} posts?**
-Type "generate" or "create posts" and I'll add them to your calendar!`
-
-    return message
-  }
-
-  /**
-   * Build technical form display with proper form layout
-   */
-  private buildTechnicalForm(): string {
-    const platforms = this.currentContext.platforms || []
-    const dateRange = this.currentContext.dateRange
-    const postCount = this.currentContext.postCount
-    
-    let form = `\`\`\`
-┌─────────────────────────────────────────────────────────────┐
-│                    TECHNICAL PARAMETERS                     │
-├─────────────────────────────────────────────────────────────┤
-│ 📱 PLATFORMS:                                               │
-│    ${platforms.map(p => `☑️ ${p.charAt(0).toUpperCase() + p.slice(1)}`).join('  ')}                    │
-│                                                             │
-│ 📅 DATE RANGE:                                              │
-│    From: ${dateRange?.start || 'Not set'}                    │
-│    To:   ${dateRange?.end || 'Not set'}                      │
-│                                                             │
-│ 📊 TOTAL POSTS:                                             │
-│    ${postCount || 'Not set'} posts across all platforms      │
-│                                                             │
-│ 🎯 TARGET AUDIENCE:                                         │
-│    ${this.currentContext.targetAudience || 'Not set'}        │
-│                                                             │
-│ 💼 INDUSTRY:                                                │
-│    ${this.currentContext.businessContext?.industry || 'General'} │
-│                                                             │
-│ 🎨 BRAND VOICE:                                             │
-│    ${this.currentContext.brandVoice || 'Professional and friendly'} │
-└─────────────────────────────────────────────────────────────┘
-\`\`\`
-
-**📝 EDIT INSTRUCTIONS:**
-- **Change platforms:** "Change to Instagram only" or "Add TikTok"
-- **Change dates:** "Change to next month" or "From Jan to Mar"
-- **Change post count:** "Change to 30 posts" or "Reduce to 20 posts"
-- **Change audience:** "Target young professionals" or "Focus on small businesses"`
-
-    return form
-  }
-
-  /**
-   * Parse technical changes from user input
-   */
-  private parseTechnicalChanges(userMessage: string): void {
-    const lowerMessage = userMessage.toLowerCase()
-    
-    // Handle platform changes
-    if (lowerMessage.includes('platform') || lowerMessage.includes('change platform')) {
-      if (lowerMessage.includes('instagram only')) {
-        this.currentContext.platforms = ['instagram']
-        this.currentContext.platform = 'instagram'
-      } else if (lowerMessage.includes('facebook only')) {
-        this.currentContext.platforms = ['facebook']
-        this.currentContext.platform = 'facebook'
-      } else if (lowerMessage.includes('linkedin only')) {
-        this.currentContext.platforms = ['linkedin']
-        this.currentContext.platform = 'linkedin'
-      }
-    }
-    
-    // Handle post count changes
-    const postCountMatch = userMessage.match(/(\d+)\s+posts?/i)
-    if (postCountMatch) {
-      this.currentContext.postCount = parseInt(postCountMatch[1])
-    }
-    
-    // Handle date range changes
-    if (lowerMessage.includes('month') || lowerMessage.includes('week')) {
-      this.currentContext.dateRange = this.parseDateRange(userMessage)
-    }
-  }
-
-  /**
-   * Build Step 4 preview message
-   */
-  private buildStep4PreviewMessage(plan: AIContentPlan): string {
-    const bc = this.currentContext.businessContext
-    let message = `🎯 **Step 4: Content Plan Preview**
-
-**📋 Plan Summary:**
-- **Company:** ${bc?.industry || 'Business'} company
-- **Platforms:** ${plan.platforms?.join(', ') || plan.platform}
-- **Duration:** ${plan.dateRange.start} to ${plan.dateRange.end}
-- **Total Posts:** ${plan.totalPosts}
-- **Focus:** ${plan.contentFocus.join(', ')}
-
-**📊 AI Recommendations:**
-${this.buildSchedulingRecommendations(plan)}
-
-**📝 Content Strategy:**
-Based on your mission "${bc?.mission?.substring(0, 100)}...", I'll create content that:
-- Builds trust through educational content
-- Showcases your expertise in ${bc?.industry}
-- Engages your target audience of ${plan.targetAudience}
-- Aligns with your brand voice: ${plan.brandVoice}
-
-**Ready to generate ${plan.totalPosts} posts?**
-Type "GENERATE" to create your content calendar!`
-
-    return message
-  }
-
-  /**
-   * Build success message for Step 5
-   */
-  private buildSuccessMessage(posts: AIPostPreview[]): string {
-    const bc = this.currentContext.businessContext
-    let message = `🎉 **Step 5: Posts Generated Successfully!**
-
-**✅ What I've Created:**
-- **${posts.length} posts** generated and scheduled
-- **Platforms:** ${this.currentContext.platforms?.join(', ') || this.currentContext.platform}
-- **Date Range:** ${this.currentContext.dateRange?.start} to ${this.currentContext.dateRange?.end}
-- **Content Focus:** ${this.currentContext.contentTypes?.join(', ') || 'Educational and engaging'}
-
-**📝 Content Highlights:**
-- Posts aligned with your ${bc?.industry || 'business'} industry
-- Mission-focused content: "${bc?.mission?.substring(0, 80)}..."
-- Target audience: ${this.currentContext.targetAudience}
-- Brand voice: ${this.currentContext.brandVoice}
-
-**🎯 Next Steps:**
-1. Review your posts in the Post Management section
-2. Edit any posts that need adjustments
-3. Schedule additional posts as needed
-4. Monitor engagement and adjust strategy
-
-Your content calendar is now ready! You can find all posts in your Post Management dashboard.`
-
-    return message
-  }
-
-  /**
-   * Build scheduling recommendations for preview
-   */
-  private buildSchedulingRecommendations(plan: AIContentPlan): string {
-    const rec = plan.schedulingRecommendation
-    return `- **Optimal Frequency:** ${rec.optimalFrequency.weekly} posts/week
-- **Best Times:** ${rec.bestTimes.join(', ')}
-- **Best Days:** ${rec.bestDays.join(', ')}
-- **Strategy:** ${rec.reasoning}`
-  }
-
-  /**
-   * Use recommended values when user approves the plan
-   */
-  private useRecommendedValues(): void {
-    const platforms = this.currentContext.platforms || [this.currentContext.platform || 'instagram']
-    const dateRange = this.currentContext.dateRange || this.getDefaultDateRange()
-    
-    // Calculate recommended post count for all platforms
-    const totalRecommended = platforms.reduce((total, platform) => {
-      return total + this.calculateOptimalPostCount(platform, dateRange)
-    }, 0)
-    
-    this.currentContext.postCount = totalRecommended
-    
-    // Set other defaults if missing
-    this.provideDefaults()
-  }
-
-  /**
-   * Provide default values for missing optional information
-   */
-  private provideDefaults(): void {
-    if (!this.currentContext.brand) {
-      this.currentContext.brand = 'Your Brand'
-    }
-    if (!this.currentContext.targetAudience) {
-      this.currentContext.targetAudience = 'General audience'
-    }
-    if (!this.currentContext.contentTypes || this.currentContext.contentTypes.length === 0) {
-      this.currentContext.contentTypes = ['educational', 'engaging']
-    }
-    if (!this.currentContext.brandVoice) {
-      this.currentContext.brandVoice = 'Professional and friendly'
-    }
-  }
-
-  /**
-   * Generate clarification questions
-   */
-  private generateClarificationQuestions(
-    missingInfo: string[], 
-    categories: Category[], 
-    topics: Topic[]
-  ): AIClarificationQuestion[] {
-    const questions: AIClarificationQuestion[] = []
-
-    if (missingInfo.includes('platform')) {
-      // Check if user mentioned multiple platforms
-      const mentionedPlatforms = this.currentContext.platforms || []
-      
-      if (mentionedPlatforms.length > 1) {
-        questions.push({
-          id: 'platform',
-          question: `I see you mentioned multiple platforms (${mentionedPlatforms.join(', ')}). Would you like me to create content for all of them, or focus on one specific platform?`,
-          type: 'select',
-          options: ['All platforms', ...mentionedPlatforms.map(p => p.charAt(0).toUpperCase() + p.slice(1))],
-          required: true,
-          context: 'Multi-platform selection'
-        })
-      } else {
-        questions.push({
-          id: 'platform',
-          question: 'What social media platform would you like to create content for?',
-          type: 'select',
-          options: ['Instagram', 'Facebook', 'Twitter', 'LinkedIn', 'TikTok'],
-          required: true,
-          context: 'Platform selection'
-        })
-      }
-    }
-
-    if (missingInfo.includes('dateRange')) {
-      questions.push({
-        id: 'dateRange',
-        question: 'What date range should I plan for?',
-        type: 'text',
-        required: true,
-        context: 'Scheduling'
-      })
-    }
-
-    if (missingInfo.includes('postCount')) {
-      const platforms = this.currentContext.platforms || [this.currentContext.platform || 'instagram']
-      const dateRange = this.currentContext.dateRange || this.getDefaultDateRange()
-      
-      if (platforms.length > 1) {
-        // Calculate total posts for all platforms
-        const totalRecommended = platforms.reduce((total, platform) => {
-          return total + this.calculateOptimalPostCount(platform, dateRange)
-        }, 0)
-        
-        questions.push({
-          id: 'postCount',
-          question: `How many posts would you like me to create across all platforms? (I recommend ${totalRecommended} total posts: ${platforms.map(p => `${this.calculateOptimalPostCount(p, dateRange)} for ${p}`).join(', ')}). You can also just say "ok" or "that's fine" to use my recommendations.`,
-          type: 'number',
-          required: true,
-          context: 'Multi-platform content volume'
-        })
-      } else {
-        const platform = platforms[0]
-        const recommendedCount = this.calculateOptimalPostCount(platform, dateRange)
-        
-        questions.push({
-          id: 'postCount',
-          question: `How many posts would you like me to create? (I recommend ${recommendedCount} posts for optimal engagement on ${platform}). You can also just say "ok" or "that's fine" to use my recommendations.`,
-          type: 'number',
-          required: true,
-          context: 'Content volume'
-        })
-      }
-    }
-
-    if (missingInfo.includes('brand')) {
-      questions.push({
-        id: 'brand',
-        question: 'What\'s your brand or business name?',
-        type: 'text',
-        required: true,
-        context: 'Branding'
-      })
-    }
-
-    if (missingInfo.includes('targetAudience')) {
-      questions.push({
-        id: 'targetAudience',
-        question: 'Who is your target audience?',
-        type: 'text',
-        required: true,
-        context: 'Audience targeting'
-      })
-    }
-
-    if (missingInfo.includes('contentTypes')) {
-      questions.push({
-        id: 'contentTypes',
-        question: 'What type of content would you like?',
-        type: 'multi-select',
-        options: ['Educational', 'Promotional', 'Motivational', 'Behind-the-scenes', 'Tips & Tutorials', 'User Stories'],
-        required: true,
-        context: 'Content strategy'
-      })
-    }
-
-    return questions
-  }
 
   /**
    * Generate scheduling recommendations based on platform and context
@@ -1948,9 +904,7 @@ Your content calendar is now ready! You can find all posts in your Post Manageme
    * Generate content plan based on context
    */
   private async generateContentPlan(
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
+    organizationId: string
   ): Promise<AIContentPlan> {
     const platform = this.currentContext.platform || 'instagram'
     const dateRange = this.currentContext.dateRange || this.getDefaultDateRange()
@@ -1982,45 +936,6 @@ Your content calendar is now ready! You can find all posts in your Post Manageme
     return plan
   }
 
-  /**
-   * Generate individual posts for the plan
-   */
-  private async generatePosts(
-    plan: AIContentPlan,
-    categories: Category[],
-    topics: Topic[]
-  ): Promise<AIPostPreview[]> {
-    const posts: AIPostPreview[] = []
-    
-    // 🎯 Use configurable limit instead of hardcoded 20
-    const maxPosts = Math.min(plan.totalPosts, this.maxPostsPerGeneration)
-    console.log(`Generating ${maxPosts} posts (limited from ${plan.totalPosts}, max limit: ${this.maxPostsPerGeneration})`)
-    
-    const dates = this.generatePostDates(plan.dateRange, maxPosts)
-
-    for (let i = 0; i < maxPosts; i++) {
-      console.log(`Generating post ${i + 1}/${maxPosts}`)
-      
-      const post: AIPostPreview = {
-        id: `post-${Date.now()}-${i}`,
-        title: `Generated Post ${i + 1}`,
-        content: await this.generatePostContent(plan, i),
-        categoryId: this.selectCategory(categories, i),
-        topicId: this.selectTopic(topics, categories, i),
-        platform: plan.platform,
-        type: 'post',
-        scheduledAt: dates[i],
-        hashtags: this.generateHashtags(plan),
-        callToAction: this.generateCallToAction(plan),
-        estimatedEngagement: this.estimateEngagement(plan, i),
-        reasoning: this.generateReasoning(plan, i)
-      }
-      posts.push(post)
-    }
-
-    console.log(`Generated ${posts.length} posts successfully`)
-    return posts
-  }
 
   /**
    * Generate post content using AI
@@ -2186,18 +1101,6 @@ Make it engaging, platform-appropriate, and include relevant hashtags. Keep it u
     return dates
   }
 
-  private selectCategory(categories: Category[], index: number): string {
-    if (categories.length === 0) return ''
-    return categories[index % categories.length].id
-  }
-
-  private selectTopic(topics: Topic[], categories: Category[], index: number): string {
-    if (topics.length === 0) return ''
-    const categoryId = this.selectCategory(categories, index)
-    const categoryTopics = topics.filter(t => t.categoryId === categoryId)
-    if (categoryTopics.length === 0) return topics[index % topics.length].id
-    return categoryTopics[index % categoryTopics.length].id
-  }
 
   private generateHashtags(plan: AIContentPlan): string[] {
     const baseHashtags = ['#SocialMedia', '#Content', '#Marketing']
@@ -2212,7 +1115,7 @@ Make it engaging, platform-appropriate, and include relevant hashtags. Keep it u
     return [...baseHashtags, ...(platformHashtags[plan.platform] || [])]
   }
 
-  private generateCallToAction(plan: AIContentPlan): string {
+  private generateCallToAction(): string {
     const ctas = [
       'What do you think? Share your thoughts below!',
       'Try this and let me know how it goes!',
@@ -2222,118 +1125,20 @@ Make it engaging, platform-appropriate, and include relevant hashtags. Keep it u
     return ctas[Math.floor(Math.random() * ctas.length)]
   }
 
-  private estimateEngagement(plan: AIContentPlan, index: number): 'low' | 'medium' | 'high' {
+  private estimateEngagement(index: number): 'low' | 'medium' | 'high' {
     // Simple engagement estimation based on content type and timing
-    const highEngagementTypes = ['motivational', 'tips', 'tutorials']
-    const isHighEngagement = highEngagementTypes.some(type => 
-      plan.contentFocus.some(focus => focus.toLowerCase().includes(type))
-    )
-    
-    return isHighEngagement ? 'high' : index % 2 === 0 ? 'medium' : 'low'
+    return index % 3 === 0 ? 'high' : index % 2 === 0 ? 'medium' : 'low'
   }
 
   private generateReasoning(plan: AIContentPlan, index: number): string {
     return `Post ${index + 1} focuses on ${plan.contentFocus[index % plan.contentFocus.length]} content, scheduled for optimal engagement time based on ${plan.platform} best practices.`
   }
 
-  private buildClarificationMessage(questions: AIClarificationQuestion[]): string {
-    let message = "I'd love to help you create your social media content! To make sure I create exactly what you need, I have a few questions:\n\n"
-    
-    questions.forEach((q, index) => {
-      message += `${index + 1}. **${q.question}**\n`
-      if (q.options) {
-        message += `   Options: ${q.options.join(', ')}\n`
-      }
-      message += '\n'
-    })
-    
-    message += "Please provide your answers and I'll create a detailed content plan for you!"
-    return message
-  }
 
-  private buildPreviewMessage(plan: AIContentPlan): string {
-    const rec = plan.schedulingRecommendation
-    const platforms = this.currentContext.platforms || [plan.platform]
-    
-    let message = `🎯 **Perfect! Here's your detailed content plan:**\n\n`
-    message += `**Platform(s):** ${platforms.length > 1 ? platforms.join(', ') : plan.platform}\n`
-    message += `**Date Range:** ${plan.dateRange.start} to ${plan.dateRange.end}\n`
-    message += `**Total Posts:** ${plan.totalPosts}\n`
-    message += `**Target Audience:** ${plan.targetAudience}\n`
-    message += `**Content Focus:** ${plan.contentFocus.join(', ')}\n\n`
-    
-    // Show business context if available
-    if (this.currentContext.businessContext) {
-      const bc = this.currentContext.businessContext
-      message += `**🏢 BUSINESS CONTEXT:**\n`
-      if (bc.industry) message += `- Industry: ${bc.industry}\n`
-      if (bc.services) message += `- Services: ${bc.services.join(', ')}\n`
-      if (bc.mission) message += `- Mission: ${bc.mission}\n`
-      message += `\n`
-    }
-    
-    if (platforms.length > 1) {
-      message += `**📊 AI RECOMMENDATIONS FOR MULTI-PLATFORM STRATEGY:**\n\n`
-      
-      platforms.forEach(platform => {
-        const platformRec = this.generateSchedulingRecommendation(platform)
-        message += `**${platform.toUpperCase()}:**\n`
-        message += `- Optimal: ${platformRec.optimalFrequency.weekly} posts/week\n`
-        message += `- Best times: ${platformRec.bestTimes.join(', ')}\n`
-        message += `- Best days: ${platformRec.bestDays.join(', ')}\n\n`
-      })
-      
-      message += `**💡 CROSS-PLATFORM STRATEGY:**\n`
-      message += `- Adapt content format for each platform\n`
-      message += `- Maintain consistent messaging across platforms\n`
-      message += `- Schedule posts at optimal times for each platform\n`
-      message += `- Use platform-specific hashtags and features\n\n`
-    } else {
-      message += `**📊 AI RECOMMENDATIONS FOR ${plan.platform.toUpperCase()}:**\n\n`
-      message += `**Optimal Posting Frequency:**\n`
-      message += `- Daily: ${rec.optimalFrequency.daily} posts\n`
-      message += `- Weekly: ${rec.optimalFrequency.weekly} posts\n`
-      message += `- Monthly: ${rec.optimalFrequency.monthly} posts\n\n`
-      
-      message += `**Best Times to Post:**\n`
-      message += `- ${rec.bestTimes.join(', ')}\n\n`
-      
-      message += `**Best Days to Post:**\n`
-      message += `- ${rec.bestDays.join(', ')}\n\n`
-      
-      message += `**Why these recommendations?**\n`
-      message += `${rec.reasoning}\n\n`
-      
-      message += `**💡 Engagement Tips:**\n`
-      rec.engagementTips.forEach(tip => {
-        message += `- ${tip}\n`
-      })
-      message += `\n`
-    }
-    
-    message += `**📅 DETAILED POST SCHEDULE:**\n\n`
-    
-    plan.posts.forEach((post, index) => {
-      message += `**📱 Post ${index + 1} - ${new Date(post.scheduledAt).toLocaleDateString()}**\n`
-      message += `- **Title:** ${post.title}\n`
-      message += `- **Content:** ${post.content.substring(0, 100)}...\n`
-      message += `- **Hashtags:** ${post.hashtags.join(' ')}\n`
-      message += `- **CTA:** ${post.callToAction}\n\n`
-    })
-    
-    message += `**Are you ready to create these posts?** Type "CREATE POSTS" to proceed, or let me know what you'd like to change!`
-    
-    return message
-  }
 
-  private buildSuccessMessage(posts: Post[]): string {
-    return `🎉 **Posts created successfully!**\n\nI've created ${posts.length} posts and added them to your calendar. You can review and edit them in your Post Management section.`
-  }
 
   private async createPostsFromPlan(
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
+    organizationId: string
   ): Promise<Post[]> {
     if (!this.currentPlan) {
       throw new Error('No content plan available')
@@ -2359,11 +1164,16 @@ Make it engaging, platform-appropriate, and include relevant hashtags. Keep it u
           status: 'draft' as const,
           scheduledAt: postPreview.scheduledAt,
           metadata: {
+            characterCount: postPreview.content.length,
+            wordCount: postPreview.content.split(/\s+/).length,
+            readingTime: Math.ceil(postPreview.content.split(/\s+/).length / 200), // 200 words per minute
+            lastEditedBy: 'AI Assistant',
+            version: 1,
             aiGenerated: true,
             aiModel: this.model,
             generatedAt: new Date().toISOString(),
             originalPlan: this.currentPlan.id
-          }
+          } as PostMetadata
         }
 
         const createdPost = await apiService.createPost(postData)
@@ -2380,44 +1190,6 @@ Make it engaging, platform-appropriate, and include relevant hashtags. Keep it u
     }
   }
 
-  private async handleEditRequest(
-    request: string,
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
-  ): Promise<AIResponse> {
-    // Handle edit requests
-    return {
-      message: 'I understand you want to edit some posts. Please specify which posts and what changes you\'d like to make.',
-      action: 'clarify'
-    }
-  }
-
-  private async handleAddRequest(
-    request: string,
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
-  ): Promise<AIResponse> {
-    // Handle add requests
-    return {
-      message: 'I understand you want to add more posts. How many additional posts would you like and what type of content?',
-      action: 'clarify'
-    }
-  }
-
-  private async handleRemoveRequest(
-    request: string,
-    organizationId: string,
-    categories: Category[],
-    topics: Topic[]
-  ): Promise<AIResponse> {
-    // Handle remove requests
-    return {
-      message: 'I understand you want to remove some posts. Please specify which posts you\'d like to remove.',
-      action: 'clarify'
-    }
-  }
 
   /**
    * Get conversation history

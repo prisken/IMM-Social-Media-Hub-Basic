@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   ArrowRight, 
@@ -9,7 +9,12 @@ import {
   MessageSquare,
   Calendar,
   Target,
-  Sparkles
+  Sparkles,
+  Plus,
+  X,
+  Check,
+  Search,
+  Filter
 } from 'lucide-react'
 import { SocialPlatform, Category, Topic } from '@/types'
 import { useAuth } from '@/components/Auth/AuthProvider'
@@ -46,9 +51,72 @@ interface ExtendedFormData {
 }
 
 const INDUSTRIES = [
-  'Beverage', 'Food & Restaurant', 'Healthcare', 'Technology', 'Financial Services',
-  'Retail', 'Fashion', 'Beauty', 'Fitness', 'Education', 'Real Estate', 'Consulting',
-  'Entertainment', 'Travel', 'Automotive', 'Other'
+  // Food & Beverage
+  'Beverage', 'Food & Restaurant', 'Coffee & Tea', 'Wine & Spirits', 'Craft Beer', 'Dairy Products',
+  'Organic Food', 'Fast Food', 'Fine Dining', 'Catering', 'Food Delivery', 'Food Manufacturing',
+  
+  // Healthcare & Wellness
+  'Healthcare', 'Mental Health', 'Dental', 'Veterinary', 'Pharmaceuticals', 'Medical Devices',
+  'Fitness & Wellness', 'Yoga & Meditation', 'Nutrition', 'Alternative Medicine', 'Senior Care',
+  'Physical Therapy', 'Chiropractic', 'Optometry', 'Dermatology', 'Pediatrics',
+  
+  // Technology & Digital
+  'Technology', 'Software Development', 'Mobile Apps', 'E-commerce', 'Cybersecurity', 'AI & Machine Learning',
+  'Cloud Computing', 'Gaming', 'Social Media', 'Digital Marketing', 'Web Development', 'IT Services',
+  'Telecommunications', 'Electronics', 'Robotics', 'Blockchain', 'IoT', 'SaaS',
+  
+  // Financial & Professional Services
+  'Financial Services', 'Banking', 'Insurance', 'Investment', 'Accounting', 'Tax Services',
+  'Legal Services', 'Consulting', 'Business Coaching', 'HR Services', 'Recruitment',
+  'Real Estate', 'Property Management', 'Mortgage', 'Financial Planning', 'Credit Services',
+  
+  // Retail & Consumer Goods
+  'Retail', 'Fashion', 'Beauty & Cosmetics', 'Jewelry', 'Home & Garden', 'Furniture',
+  'Books & Media', 'Toys & Games', 'Sports & Outdoor', 'Automotive',
+  'Pet Supplies', 'Baby Products', 'Gifts & Accessories', 'Luxury Goods', 'Thrift & Vintage',
+  
+  // Education & Training
+  'Education', 'Online Learning', 'Language Learning', 'Professional Training', 'Tutoring',
+  'Early Childhood', 'Higher Education', 'Vocational Training', 'Corporate Training',
+  'Music & Arts Education', 'STEM Education', 'Special Education',
+  
+  // Entertainment & Media
+  'Entertainment', 'Film & TV', 'Theater & Performing Arts',
+  'Video Production', 'Podcasting', 'Streaming', 'Event Planning',
+  'Wedding Planning', 'Party Planning', 'Concert Promotion', 'Art & Design',
+  
+  // Travel & Hospitality
+  'Travel', 'Tourism', 'Hotels & Accommodation', 'Restaurants', 'Cafes', 'Bars & Nightlife',
+  'Cruise Lines', 'Airlines', 'Car Rental', 'Travel Agency', 'Vacation Rentals',
+  'Adventure Travel', 'Luxury Travel', 'Business Travel', 'Group Travel',
+  
+  // Manufacturing & Industrial
+  'Manufacturing', 'Textiles', 'Automotive Manufacturing', 'Aerospace', 'Construction',
+  'Architecture', 'Engineering', 'Mining', 'Oil & Gas',
+  'Packaging', 'Printing', 'Chemical', 'Plastics', 'Metals', 'Wood Products',
+  
+  // Agriculture & Environment
+  'Agriculture', 'Farming', 'Livestock', 'Crop Production', 'Organic Farming',
+  'Environmental Services', 'Sustainability', 'Renewable Energy', 'Waste Management',
+  'Water Treatment', 'Green Technology', 'Conservation', 'Forestry',
+  
+  // Non-Profit & Government
+  'Non-Profit', 'Charity', 'Religious Organizations', 'Government', 'Public Services',
+  'Community Services', 'Social Services', 'Advocacy', 'Environmental Organizations',
+  'Animal Welfare', 'Humanitarian Aid', 'Education Non-Profit',
+  
+  // Personal Services
+  'Personal Care', 'Hair & Beauty', 'Spa & Wellness', 'Massage Therapy', 'Personal Training',
+  'Life Coaching', 'Pet Services', 'Pet Grooming', 'Pet Training', 'Pet Sitting',
+  'Cleaning Services', 'Laundry Services', 'Moving Services', 'Home Maintenance',
+  
+  // Creative & Professional
+  'Graphic Design', 'Web Design', 'Interior Design', 'Fashion Design',
+  'Videography', 'Writing & Editing', 'Translation', 'Marketing', 'Advertising',
+  'Public Relations', 'Branding', 'Content Creation', 'Social Media Management',
+  
+  // Other
+  'Other', 'Custom/Unique Business'
 ]
 
 const PLATFORMS: SocialPlatform[] = ['facebook', 'instagram', 'linkedin', 'tiktok', 'twitter']
@@ -81,6 +149,58 @@ const BRAND_VOICE_OPTIONS = [
   'Authentic and genuine'
 ]
 
+const TARGET_AUDIENCE_OPTIONS = [
+  // Age-based demographics
+  'Gen Z (18-26)', 'Millennials (27-42)', 'Gen X (43-58)', 'Baby Boomers (59-77)', 'Seniors (78+)',
+  'Teens (13-17)', 'Young Adults (18-25)', 'Adults (26-40)', 'Middle-aged (41-55)', 'Mature Adults (56+)',
+  
+  // Gender demographics
+  'Women', 'Men', 'Non-binary', 'All genders',
+  'Ladies in their 20s', 'Ladies in their 30s', 'Ladies in their 40s', 'Ladies in their 50s+',
+  'Men in their 20s', 'Men in their 30s', 'Men in their 40s', 'Men in their 50s+',
+  
+  // Professional demographics
+  'Young professionals', 'Mid-career professionals', 'Senior executives', 'Entrepreneurs',
+  'Small business owners', 'Corporate employees', 'Freelancers', 'Remote workers',
+  'Students', 'Recent graduates', 'Career changers', 'Retirees',
+  
+  // Income-based demographics
+  'High-income earners', 'Middle-class families', 'Budget-conscious consumers',
+  'Luxury consumers', 'Value seekers', 'Premium buyers', 'Cost-conscious buyers',
+  
+  // Lifestyle demographics
+  'Health-conscious consumers', 'Fitness enthusiasts', 'Wellness seekers', 'Busy parents',
+  'Empty nesters', 'New parents', 'Pet owners', 'Travel enthusiasts',
+  'Food lovers', 'Tech enthusiasts', 'Creative professionals', 'Art lovers',
+  
+  // Interest-based demographics
+  'Fashion-forward individuals', 'Beauty enthusiasts', 'Home decor lovers', 'Gardeners',
+  'Sports fans', 'Gamers', 'Music lovers', 'Book readers', 'Movie buffs',
+  'Outdoor enthusiasts', 'Adventure seekers', 'Luxury lifestyle seekers',
+  
+  // Geographic demographics
+  'Urban dwellers', 'Suburban families', 'Rural communities', 'International audience',
+  'Local community', 'National audience', 'Global audience',
+  
+  // Industry-specific demographics
+  'Healthcare professionals', 'Tech workers', 'Finance professionals', 'Educators',
+  'Legal professionals', 'Manufacturing workers',
+  'Retail employees', 'Service industry workers', 'Government employees',
+  
+  // Psychographic demographics
+  'Early adopters', 'Trend followers', 'Traditional consumers', 'Innovation seekers',
+  'Quality-focused buyers', 'Convenience seekers', 'Eco-conscious consumers',
+  'Socially responsible buyers', 'Brand loyalists', 'Price-sensitive shoppers',
+  
+  // Specialized demographics
+  'B2B decision makers', 'B2C consumers', 'Influencers', 'Content creators',
+  'Enterprise clients', 'Non-profit organizations',
+  'Educational institutions', 'Government agencies', 'Healthcare organizations',
+  
+  // Custom/Other
+  'Custom audience', 'Multiple demographics', 'Niche market', 'Specific community'
+]
+
 export const AIFormFlow: React.FC<AIFormFlowProps> = ({
   isOpen,
   onClose,
@@ -109,6 +229,56 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
     keyMessage: '',
     brandVoice: ''
   })
+
+  // 🏢 Company Information Storage
+  const COMPANY_INFO_KEY = 'ai-company-info'
+  
+  const saveCompanyInfo = (data: BasicFormData) => {
+    try {
+      localStorage.setItem(COMPANY_INFO_KEY, JSON.stringify(data))
+      console.log('💾 Company information saved to localStorage')
+    } catch (error) {
+      console.error('❌ Failed to save company information:', error)
+    }
+  }
+  
+  const loadCompanyInfo = (): BasicFormData | null => {
+    try {
+      const saved = localStorage.getItem(COMPANY_INFO_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        console.log('📂 Company information loaded from localStorage:', parsed)
+        return parsed
+      }
+    } catch (error) {
+      console.error('❌ Failed to load company information:', error)
+    }
+    return null
+  }
+  
+  const clearCompanyInfo = () => {
+    try {
+      localStorage.removeItem(COMPANY_INFO_KEY)
+      console.log('🗑️ Company information cleared from localStorage')
+    } catch (error) {
+      console.error('❌ Failed to clear company information:', error)
+    }
+  }
+
+  // 🔄 Load saved company information on component mount
+  useEffect(() => {
+    if (isOpen) {
+      const savedInfo = loadCompanyInfo()
+      if (savedInfo) {
+        setBasicFormData(savedInfo)
+        setShowDataRestored(true)
+        console.log('✅ Company information restored from previous session')
+        
+        // Hide notification after 3 seconds
+        setTimeout(() => setShowDataRestored(false), 3000)
+      }
+    }
+  }, [isOpen])
   
   const [extendedFormData, setExtendedFormData] = useState<ExtendedFormData>({
     totalPosts: 20,
@@ -129,22 +299,36 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
     action: 'Preparing...',
     estimatedTime: 0
   })
+  
+  // Search and filter states for categories and topics
+  const [categorySearch, setCategorySearch] = useState('')
+  const [topicSearch, setTopicSearch] = useState('')
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false)
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
+  const [showDataRestored, setShowDataRestored] = useState(false)
 
   const handleBasicFormChange = (field: keyof BasicFormData, value: any) => {
-    setBasicFormData(prev => ({
-      ...prev,
+    const updatedData = {
+      ...basicFormData,
       [field]: value
-    }))
+    }
+    setBasicFormData(updatedData)
+    
+    // 💾 Auto-save company information
+    saveCompanyInfo(updatedData)
   }
 
   const handlePlatformToggle = (platform: SocialPlatform) => {
-    setBasicFormData(prev => ({
-      ...prev,
-      primaryPlatforms: prev.primaryPlatforms.includes(platform)
-        ? prev.primaryPlatforms.filter(p => p !== platform)
-        : [...prev.primaryPlatforms, platform]
-    }))
+    const updatedData = {
+      ...basicFormData,
+      primaryPlatforms: basicFormData.primaryPlatforms.includes(platform)
+        ? basicFormData.primaryPlatforms.filter(p => p !== platform)
+        : [...basicFormData.primaryPlatforms, platform]
+    }
+    setBasicFormData(updatedData)
+    
+    // 💾 Auto-save company information
+    saveCompanyInfo(updatedData)
   }
 
   const handleExtendedFormChange = (field: keyof ExtendedFormData, value: any) => {
@@ -189,6 +373,54 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
         : [...prev.contentFocus, focus]
     }))
   }
+
+  // Quick selection functions
+  const handleSelectAllCategories = () => {
+    const allCategoryIds = categories.map(cat => cat.id)
+    setExtendedFormData(prev => ({
+      ...prev,
+      selectedCategories: allCategoryIds
+    }))
+  }
+
+  const handleSelectAllTopics = () => {
+    const allTopicIds = topics.map(topic => topic.id)
+    setExtendedFormData(prev => ({
+      ...prev,
+      selectedTopics: allTopicIds
+    }))
+  }
+
+  const handleClearAllCategories = () => {
+    setExtendedFormData(prev => ({
+      ...prev,
+      selectedCategories: []
+    }))
+  }
+
+  const handleClearAllTopics = () => {
+    setExtendedFormData(prev => ({
+      ...prev,
+      selectedTopics: []
+    }))
+  }
+
+  // Filter functions
+  const filteredCategories = categories.filter(category => {
+    const matchesSearch = !categorySearch || 
+      category.name.toLowerCase().includes(categorySearch.toLowerCase())
+    const matchesFilter = !showSelectedOnly || 
+      extendedFormData.selectedCategories.includes(category.id)
+    return matchesSearch && matchesFilter
+  })
+
+  const filteredTopics = topics.filter(topic => {
+    const matchesSearch = !topicSearch || 
+      topic.name.toLowerCase().includes(topicSearch.toLowerCase())
+    const matchesFilter = !showSelectedOnly || 
+      extendedFormData.selectedTopics.includes(topic.id)
+    return matchesSearch && matchesFilter
+  })
 
   const generateAISummary = async () => {
     const aiService = AIService.getInstance()
@@ -358,6 +590,9 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
     try {
       const aiService = AIService.getInstance()
       
+      // Set the AI service post limit to the user's selected value
+      aiService.setMaxPostsPerGeneration(extendedFormData.totalPosts)
+      
       // Create form data for AI service
       const formData = {
         totalPosts: extendedFormData.totalPosts,
@@ -372,8 +607,6 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
       const plan = await aiService.generatePostsFromForm(
         formData,
         currentOrganization.id,
-        categories,
-        topics,
         (current, total, action) => {
           setGenerationProgress({
             current,
@@ -386,7 +619,7 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
       
       // Create actual posts in the database
       if (plan.posts && plan.posts.length > 0) {
-        const createdPosts = await aiService.createPostsFromPlan(plan, currentOrganization.id)
+        const createdPosts = await aiService.createPostsFromPlan(currentOrganization.id)
         onPostsCreated?.(createdPosts)
       }
       
@@ -400,7 +633,7 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
   const isBasicFormValid = () => {
     return basicFormData.companyName.trim() !== '' &&
            basicFormData.industry !== '' &&
-           basicFormData.targetAudience.trim() !== '' &&
+           basicFormData.targetAudience !== '' &&
            basicFormData.primaryPlatforms.length > 0 &&
            basicFormData.keyMessage.trim() !== '' &&
            basicFormData.brandVoice !== ''
@@ -415,11 +648,46 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
   if (!isOpen) return null
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .post-limit-slider::-webkit-slider-thumb {
+            appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #8b5cf6;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          }
+          
+          .post-limit-slider::-moz-range-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #8b5cf6;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          }
+          
+          .post-limit-slider::-webkit-slider-track {
+            height: 8px;
+            border-radius: 4px;
+          }
+          
+          .post-limit-slider::-moz-range-track {
+            height: 8px;
+            border-radius: 4px;
+          }
+        `
+      }} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
@@ -474,6 +742,24 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
                   <p className="text-gray-600">Tell us about your business to get started</p>
                 </div>
 
+                {/* Data Restored Notification */}
+                {showDataRestored && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6"
+                  >
+                    <div className="flex items-center">
+                      <Check className="w-5 h-5 text-green-500 mr-3" />
+                      <div>
+                        <h4 className="text-sm font-medium text-green-800">Company Information Restored</h4>
+                        <p className="text-sm text-green-700">Your previously saved company details have been loaded automatically.</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Company Name */}
                   <div>
@@ -514,13 +800,16 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
                       <Users className="w-4 h-4 inline mr-2" />
                       Target Audience
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={basicFormData.targetAudience}
                       onChange={(e) => handleBasicFormChange('targetAudience', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      placeholder="e.g., Ladies in their 30s, Young professionals, Health-conscious consumers"
-                    />
+                    >
+                      <option value="">Select target audience</option>
+                      {TARGET_AUDIENCE_OPTIONS.map(audience => (
+                        <option key={audience} value={audience}>{audience}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Primary Platforms */}
@@ -672,15 +961,31 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         📊 Number of Posts
+                        <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                          {extendedFormData.totalPosts}
+                        </span>
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="200"
-                        value={extendedFormData.totalPosts}
-                        onChange={(e) => handleExtendedFormChange('totalPosts', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
+                      <div className="space-y-3">
+                        <input
+                          type="range"
+                          min="1"
+                          max="40"
+                          value={extendedFormData.totalPosts}
+                          onChange={(e) => handleExtendedFormChange('totalPosts', parseInt(e.target.value))}
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer post-limit-slider"
+                          style={{
+                            background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((extendedFormData.totalPosts - 1) / 39) * 100}%, #e5e7eb ${((extendedFormData.totalPosts - 1) / 39) * 100}%, #e5e7eb 100%)`
+                          }}
+                        />
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>1 post</span>
+                          <span className="font-medium text-purple-600">{extendedFormData.totalPosts} posts</span>
+                          <span>40 posts</span>
+                        </div>
+                        <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                          💡 <strong>Tip:</strong> More posts = more content variety, but longer generation time
+                        </div>
+                      </div>
                     </div>
 
                     {/* Date Range */}
@@ -733,70 +1038,265 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
 
                   {/* Right Column */}
                   <div className="space-y-6">
-                    {/* Categories */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        📂 Categories
-                      </label>
-                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
-                        {categories.length > 0 ? (
-                          categories.map(category => (
-                            <label key={category.id} className="flex items-center space-x-2 cursor-pointer py-1">
-                              <input
-                                type="checkbox"
-                                checked={extendedFormData.selectedCategories.includes(category.id)}
-                                onChange={() => handleCategoryToggle(category.id)}
-                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                              />
-                              <span className="text-sm">{category.name}</span>
-                            </label>
-                          ))
+                    {/* Categories Section */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="flex items-center text-sm font-medium text-gray-700">
+                          <Building2 className="w-4 h-4 mr-2" />
+                          Categories
+                          <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                            {extendedFormData.selectedCategories.length}
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleSelectAllCategories}
+                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                            title="Select All Categories"
+                          >
+                            <Check className="w-3 h-3 inline mr-1" />
+                            All
+                          </button>
+                          <button
+                            onClick={handleClearAllCategories}
+                            className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                            title="Clear All Categories"
+                          >
+                            <X className="w-3 h-3 inline mr-1" />
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Search and Filter */}
+                      <div className="mb-3 space-y-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search categories..."
+                            value={categorySearch}
+                            onChange={(e) => setCategorySearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+                            className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
+                              showSelectedOnly 
+                                ? 'bg-purple-100 text-purple-700' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Filter className="w-3 h-3" />
+                            Selected Only
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Categories List */}
+                      <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md bg-white">
+                        {filteredCategories.length > 0 ? (
+                          <div className="p-2 space-y-1">
+                            {filteredCategories.map(category => (
+                              <motion.label 
+                                key={category.id} 
+                                className={`flex items-center space-x-3 cursor-pointer p-2 rounded-md transition-colors hover:bg-gray-50 ${
+                                  extendedFormData.selectedCategories.includes(category.id) 
+                                    ? 'bg-purple-50 border border-purple-200' 
+                                    : ''
+                                }`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={extendedFormData.selectedCategories.includes(category.id)}
+                                  onChange={() => handleCategoryToggle(category.id)}
+                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span className="text-sm font-medium text-gray-700 flex-1">
+                                  {category.name}
+                                </span>
+                                {extendedFormData.selectedCategories.includes(category.id) && (
+                                  <Check className="w-4 h-4 text-purple-600" />
+                                )}
+                              </motion.label>
+                            ))}
+                          </div>
                         ) : (
-                          <p className="text-sm text-gray-500">No categories available</p>
+                          <div className="p-4 text-center">
+                            <p className="text-sm text-gray-500">
+                              {categorySearch ? 'No categories match your search' : 'No categories available'}
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Topics */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        🏷️ Topics
-                      </label>
-                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
-                        {topics.length > 0 ? (
-                          topics.map(topic => (
-                            <label key={topic.id} className="flex items-center space-x-2 cursor-pointer py-1">
-                              <input
-                                type="checkbox"
-                                checked={extendedFormData.selectedTopics.includes(topic.id)}
-                                onChange={() => handleTopicToggle(topic.id)}
-                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                              />
-                              <span className="text-sm">{topic.name}</span>
-                            </label>
-                          ))
+                    {/* Topics Section */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="flex items-center text-sm font-medium text-gray-700">
+                          <Target className="w-4 h-4 mr-2" />
+                          Topics
+                          <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                            {extendedFormData.selectedTopics.length}
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleSelectAllTopics}
+                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                            title="Select All Topics"
+                          >
+                            <Check className="w-3 h-3 inline mr-1" />
+                            All
+                          </button>
+                          <button
+                            onClick={handleClearAllTopics}
+                            className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                            title="Clear All Topics"
+                          >
+                            <X className="w-3 h-3 inline mr-1" />
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Search and Filter */}
+                      <div className="mb-3 space-y-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search topics..."
+                            value={topicSearch}
+                            onChange={(e) => setTopicSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+                            className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
+                              showSelectedOnly 
+                                ? 'bg-blue-100 text-blue-700' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Filter className="w-3 h-3" />
+                            Selected Only
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Topics List */}
+                      <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md bg-white">
+                        {filteredTopics.length > 0 ? (
+                          <div className="p-2 space-y-1">
+                            {filteredTopics.map(topic => (
+                              <motion.label 
+                                key={topic.id} 
+                                className={`flex items-center space-x-3 cursor-pointer p-2 rounded-md transition-colors hover:bg-gray-50 ${
+                                  extendedFormData.selectedTopics.includes(topic.id) 
+                                    ? 'bg-blue-50 border border-blue-200' 
+                                    : ''
+                                }`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={extendedFormData.selectedTopics.includes(topic.id)}
+                                  onChange={() => handleTopicToggle(topic.id)}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-sm font-medium text-gray-700 flex-1">
+                                  {topic.name}
+                                </span>
+                                {extendedFormData.selectedTopics.includes(topic.id) && (
+                                  <Check className="w-4 h-4 text-blue-600" />
+                                )}
+                              </motion.label>
+                            ))}
+                          </div>
                         ) : (
-                          <p className="text-sm text-gray-500">No topics available</p>
+                          <div className="p-4 text-center">
+                            <p className="text-sm text-gray-500">
+                              {topicSearch ? 'No topics match your search' : 'No topics available'}
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>
 
                     {/* Content Focus */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        🎯 Content Focus
-                      </label>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="flex items-center text-sm font-medium text-gray-700">
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Content Focus
+                          <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                            {extendedFormData.contentFocus.length}
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setExtendedFormData(prev => ({
+                                ...prev,
+                                contentFocus: CONTENT_FOCUS_OPTIONS
+                              }))
+                            }}
+                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                            title="Select All Content Types"
+                          >
+                            <Check className="w-3 h-3 inline mr-1" />
+                            All
+                          </button>
+                          <button
+                            onClick={() => {
+                              setExtendedFormData(prev => ({
+                                ...prev,
+                                contentFocus: []
+                              }))
+                            }}
+                            className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                            title="Clear All Content Types"
+                          >
+                            <X className="w-3 h-3 inline mr-1" />
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                      
                       <div className="grid grid-cols-1 gap-2">
                         {CONTENT_FOCUS_OPTIONS.map(focus => (
-                          <label key={focus} className="flex items-center space-x-2 cursor-pointer">
+                          <motion.label 
+                            key={focus} 
+                            className={`flex items-center space-x-3 cursor-pointer p-2 rounded-md transition-colors hover:bg-gray-50 ${
+                              extendedFormData.contentFocus.includes(focus) 
+                                ? 'bg-green-50 border border-green-200' 
+                                : ''
+                            }`}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
                             <input
                               type="checkbox"
                               checked={extendedFormData.contentFocus.includes(focus)}
                               onChange={() => handleContentFocusToggle(focus)}
-                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                             />
-                            <span className="text-sm">{focus}</span>
-                          </label>
+                            <span className="text-sm font-medium text-gray-700 flex-1">
+                              {focus}
+                            </span>
+                            {extendedFormData.contentFocus.includes(focus) && (
+                              <Check className="w-4 h-4 text-green-600" />
+                            )}
+                          </motion.label>
                         ))}
                       </div>
                     </div>
@@ -826,14 +1326,37 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
 
         {/* Footer */}
         <div className="flex justify-between items-center p-6 border-t bg-gray-50">
-          <button
-            onClick={() => setCurrentStep(currentStep - 1)}
-            disabled={currentStep === 1}
-            className="flex items-center space-x-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setCurrentStep(currentStep - 1)}
+              disabled={currentStep === 1}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
+            
+            {currentStep === 1 && (
+              <button
+                onClick={() => {
+                  clearCompanyInfo()
+                  setBasicFormData({
+                    companyName: '',
+                    industry: '',
+                    targetAudience: '',
+                    primaryPlatforms: [],
+                    keyMessage: '',
+                    brandVoice: ''
+                  })
+                }}
+                className="flex items-center space-x-2 px-3 py-2 text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 text-sm"
+                title="Clear saved company information"
+              >
+                <X className="w-4 h-4" />
+                <span>Clear Saved Data</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex space-x-3">
             {currentStep === 1 && (
@@ -871,5 +1394,6 @@ export const AIFormFlow: React.FC<AIFormFlowProps> = ({
         </div>
       </motion.div>
     </motion.div>
+    </>
   )
 }

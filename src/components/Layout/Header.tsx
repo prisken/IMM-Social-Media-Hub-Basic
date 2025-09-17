@@ -11,9 +11,10 @@ import { AIAssistantNew } from '@/components/AI/AIAssistantNew'
 interface HeaderProps {
   currentView: 'posts' | 'calendar' | 'categories' | 'media'
   onViewChange: (view: 'posts' | 'calendar' | 'categories' | 'media') => void
+  onPostRefresh?: () => void
 }
 
-export function Header({ currentView, onViewChange }: HeaderProps) {
+export function Header({ currentView, onViewChange, onPostRefresh }: HeaderProps) {
   const { logout, user, currentOrganization, userOrganizations, switchOrganization, createOrganization, deleteOrganization } = useAuth()
   const [showOrgDropdown, setShowOrgDropdown] = useState(false)
   const [newOrgName, setNewOrgName] = useState('')
@@ -247,7 +248,10 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
 
       {/* Right side - User actions */}
       <div className="flex items-center gap-2">
-        <PostSeedingButton />
+        <PostSeedingButton onPostsSeeded={(count) => {
+          console.log(`Seeded ${count} posts, triggering refresh`)
+          onPostRefresh?.()
+        }} />
         
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -314,8 +318,8 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
         onClose={closeAssistant}
         onPostsCreated={(posts) => {
           // Handle posts created by AI
-          console.log('AI created posts:', posts)
-          // You can add logic here to refresh the post list or show a notification
+          console.log(`AI created ${posts.length} posts, triggering refresh`)
+          onPostRefresh?.()
         }}
       />
     </header>

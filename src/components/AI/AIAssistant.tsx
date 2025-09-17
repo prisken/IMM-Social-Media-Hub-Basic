@@ -271,8 +271,6 @@ export function AIAssistant({ isOpen, onClose, onPostsCreated }: AIAssistantProp
       const plan = await aiService.generatePostsFromForm(
         formData,
         currentOrganization.id,
-        categories,
-        topics,
         (current, total, action) => {
           setGenerationProgress({
             current,
@@ -287,7 +285,7 @@ export function AIAssistant({ isOpen, onClose, onPostsCreated }: AIAssistantProp
       
       // Create actual posts in the database
       if (plan.posts && plan.posts.length > 0) {
-        const createdPosts = await aiService.createPostsFromPlan(plan, currentOrganization.id)
+        const createdPosts = await aiService.createPostsFromPlan(currentOrganization.id)
         onPostsCreated?.(createdPosts)
         
         // Add success message to chat

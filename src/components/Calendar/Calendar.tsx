@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { CalendarList } from './CalendarList'
 import { CalendarView } from './CalendarView'
 import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react'
+import { PostService } from '@/services/PostService'
+import { Post, Category, Topic } from '@/types'
 
 interface CalendarProps {
   selectedPostId: string | null
@@ -12,6 +14,56 @@ interface CalendarProps {
 export function Calendar({ selectedPostId, onPostSelect }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
+  const [posts, setPosts] = useState<Post[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const postService = new PostService()
+      
+      const [postsData, categoriesData, topicsData] = await Promise.all([
+        postService.getPosts(),
+        postService.getCategories(),
+        postService.getTopics()
+      ])
+      
+      setPosts(postsData)
+      setCategories(categoriesData)
+      setTopics(topicsData)
+    } catch (error) {
+      console.error('Failed to load calendar data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const handlePostMove = async (postId: string, newDate: Date) => {
+    try {
+      const postService = new PostService()
+      const scheduledAt = newDate.toISOString()
+      await postService.updatePost(postId, { scheduledAt })
+      await loadData() // Refresh data after update
+    } catch (error) {
+      console.error('Failed to move post:', error)
+    }
+  }
+
+  const handlePostSchedule = async (postId: string, scheduledAt: string | null) => {
+    try {
+      const postService = new PostService()
+      await postService.updatePost(postId, { scheduledAt })
+      await loadData() // Refresh data after update
+    } catch (error) {
+      console.error('Failed to schedule post:', error)
+    }
+  }
 
   const goToPreviousPeriod = () => {
     const newDate = new Date(currentDate)
@@ -155,18 +207,30 @@ export function Calendar({ selectedPostId, onPostSelect }: CalendarProps) {
         {/* Post List */}
         <div className="w-1/3 border-r border-border">
           <CalendarList
+            posts={posts}
+            categories={categories}
+            topics={topics}
             selectedPostId={selectedPostId}
+            loading={loading}
             onPostSelect={onPostSelect}
+            onPostSchedule={handlePostSchedule}
           />
         </div>
 
         {/* Calendar View */}
         <div className="w-2/3">
           <CalendarView
-            currentDate={currentDate}
-            viewMode={viewMode}
+            posts={posts}
+            categories={categories}
+            topics={topics}
+            selectedDate={currentDate}
             selectedPostId={selectedPostId}
+            loading={loading}
+            viewMode={viewMode}
+            onDateSelect={setCurrentDate}
             onPostSelect={onPostSelect}
+            onPostMove={handlePostMove}
+            onPostSchedule={handlePostSchedule}
           />
         </div>
       </div>

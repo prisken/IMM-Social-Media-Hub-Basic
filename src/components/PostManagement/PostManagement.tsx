@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, Filter, Grid, List, MoreVertical } from 'lucide-react'
+import { Plus, Search, Filter, Grid, List, MoreVertical, CheckSquare } from 'lucide-react'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { useData } from '@/context/DataContext'
 import { PostList } from './PostList'
@@ -100,6 +100,26 @@ export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: 
     }
   }
 
+  const handleSelectAll = () => {
+    const allPostIds = filteredPosts.map(post => post.id)
+    setSelectedPosts(allPostIds)
+  }
+
+  const handleClearSelection = () => {
+    setSelectedPosts([])
+  }
+
+  const handleToggleSelectAll = () => {
+    const allPostIds = filteredPosts.map(post => post.id)
+    const allSelected = allPostIds.every(id => selectedPosts.includes(id))
+    
+    if (allSelected) {
+      handleClearSelection()
+    } else {
+      handleSelectAll()
+    }
+  }
+
   // Filter posts based on search and filters
   const filteredPosts = posts.filter(post => {
     const matchesSearch = !searchTerm || 
@@ -134,6 +154,22 @@ export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: 
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-foreground">Post Management</h2>
           <div className="flex items-center gap-2">
+            {filteredPosts.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleToggleSelectAll}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  filteredPosts.every(post => selectedPosts.includes(post.id))
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
+                }`}
+                title={filteredPosts.every(post => selectedPosts.includes(post.id)) ? "Deselect all posts" : "Select all posts"}
+              >
+                <CheckSquare className="w-4 h-4" />
+                {filteredPosts.every(post => selectedPosts.includes(post.id)) ? 'Deselect All' : 'Select All'}
+              </motion.button>
+            )}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -251,7 +287,7 @@ export function PostManagement({ selectedPostId, onPostSelect, onPostRefresh }: 
                   Bulk Actions
                 </button>
                 <button
-                  onClick={() => setSelectedPosts([])}
+                  onClick={handleClearSelection}
                   className="px-3 py-1 text-sm bg-muted text-muted-foreground rounded-md hover:bg-muted/80"
                 >
                   Clear Selection

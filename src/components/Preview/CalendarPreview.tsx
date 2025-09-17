@@ -84,9 +84,9 @@ export function CalendarPreview({ selectedPostId, onPostSelect, postRefreshTrigg
     )
   }
 
-  // Calculate real stats
-  const scheduledPosts = posts.filter(post => post.scheduledAt && post.status === 'scheduled')
-  const draftPosts = posts.filter(post => post.status === 'draft')
+  // Calculate real stats - use same logic as CalendarList
+  const scheduledPosts = posts.filter(post => post.scheduledAt)
+  const draftPosts = posts.filter(post => !post.scheduledAt)
   const publishedPosts = posts.filter(post => post.status === 'published')
   
   // Get upcoming posts (next 7 days)

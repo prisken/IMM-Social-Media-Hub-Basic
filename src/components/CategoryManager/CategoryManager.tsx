@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Edit, Trash2, Tag, Palette } from 'lucide-react'
+import { Plus, Edit, Trash2, Tag, Palette, Search, Filter, Check, X, Building2, Target, Sparkles } from 'lucide-react'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { apiService } from '@/services/ApiService'
 import { Category, Topic } from '@/types'
@@ -43,6 +43,17 @@ export function CategoryManager() {
   const [showTopicForm, setShowTopicForm] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
+  
+  // Search and filter states
+  const [categorySearch, setCategorySearch] = useState('')
+  const [topicSearch, setTopicSearch] = useState('')
+  const [showEmptyCategories, setShowEmptyCategories] = useState(true)
+  
+  // Quick add states
+  const [showQuickAddCategory, setShowQuickAddCategory] = useState(false)
+  const [showQuickAddTopic, setShowQuickAddTopic] = useState(false)
+  const [quickCategoryName, setQuickCategoryName] = useState('')
+  const [quickTopicName, setQuickTopicName] = useState('')
 
   const predefinedColors = [
     '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4',
@@ -51,6 +62,65 @@ export function CategoryManager() {
 
   const getTopicsForCategory = (categoryId: string) => {
     return topics.filter(topic => topic.categoryId === categoryId)
+  }
+
+  // Filter functions
+  const filteredCategories = categories.filter(category => {
+    const matchesSearch = !categorySearch || 
+      category.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
+      (category.description && category.description.toLowerCase().includes(categorySearch.toLowerCase()))
+    const matchesFilter = showEmptyCategories || category.topicCount > 0
+    return matchesSearch && matchesFilter
+  })
+
+  const filteredTopics = selectedCategory ? getTopicsForCategory(selectedCategory).filter(topic => {
+    return !topicSearch || 
+      topic.name.toLowerCase().includes(topicSearch.toLowerCase()) ||
+      (topic.description && topic.description.toLowerCase().includes(topicSearch.toLowerCase()))
+  }) : []
+
+  // Quick add functions
+  const handleQuickAddCategory = () => {
+    setShowCategoryForm(true)
+  }
+
+  const handleQuickAddTopic = () => {
+    if (selectedCategory) {
+      setShowTopicForm(true)
+    }
+  }
+
+  const handleQuickCreateCategory = () => {
+    if (quickCategoryName.trim()) {
+      const newCategory: Category = {
+        id: Date.now().toString(),
+        name: quickCategoryName.trim(),
+        color: predefinedColors[Math.floor(Math.random() * predefinedColors.length)],
+        topicCount: 0
+      }
+      setCategories(prev => [...prev, newCategory])
+      setQuickCategoryName('')
+      setShowQuickAddCategory(false)
+    }
+  }
+
+  const handleQuickCreateTopic = () => {
+    if (quickTopicName.trim() && selectedCategory) {
+      const newTopic: Topic = {
+        id: Date.now().toString(),
+        name: quickTopicName.trim(),
+        color: predefinedColors[Math.floor(Math.random() * predefinedColors.length)],
+        categoryId: selectedCategory
+      }
+      setTopics(prev => [...prev, newTopic])
+      setCategories(prev => prev.map(cat => 
+        cat.id === selectedCategory 
+          ? { ...cat, topicCount: cat.topicCount + 1 }
+          : cat
+      ))
+      setQuickTopicName('')
+      setShowQuickAddTopic(false)
+    }
   }
 
   const handleCreateCategory = (categoryData: Omit<Category, 'id' | 'topicCount'>) => {
@@ -110,164 +180,352 @@ export function CategoryManager() {
   }
 
   return (
-    <div className="h-full flex">
-      {/* Categories List */}
-      <div className="w-1/2 border-r border-border">
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">Categories</h3>
+    <div className="h-full flex flex-col bg-background">
+      {/* Header */}
+      <div className="p-4 border-b border-border bg-card">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">Categories & Topics</h2>
+            <p className="text-sm text-muted-foreground">Organize your content with categories and topics</p>
+          </div>
+          <div className="flex items-center gap-2">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowCategoryForm(true)}
-              className="btn btn-primary btn-sm"
+              onClick={handleQuickAddCategory}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4" />
               New Category
             </motion.button>
           </div>
         </div>
-
-        <div className="p-4 space-y-3">
-          {categories.map((category, index) => (
-            <motion.div
-              key={category.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-              onClick={() => setSelectedCategory(category.id)}
-              className={`p-4 rounded-lg border border-border cursor-pointer transition-all hover:shadow-md ${
-                selectedCategory === category.id ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div 
-                    className="w-4 h-4 rounded-full mt-1"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  <div className="flex-1">
-                    <h4 className="font-medium text-foreground">{category.name}</h4>
-                    {category.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {category.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
-                      <Tag className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
-                        {category.topicCount} topics
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setEditingCategory(category)
-                    }}
-                    className="p-1 hover:bg-muted rounded"
-                  >
-                    <Edit className="w-3 h-3 text-muted-foreground" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteCategory(category.id)
-                    }}
-                    className="p-1 hover:bg-destructive/10 rounded"
-                  >
-                    <Trash2 className="w-3 h-3 text-destructive" />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
       </div>
 
-      {/* Topics List */}
-      <div className="w-1/2">
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">
-              Topics {selectedCategory && `- ${categories.find(c => c.id === selectedCategory)?.name}`}
-            </h3>
-            {selectedCategory && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowTopicForm(true)}
-                className="btn btn-primary btn-sm"
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Categories Section */}
+        <div className="w-1/2 border-r border-border flex flex-col">
+          <div className="p-4 border-b border-border bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <label className="flex items-center text-sm font-medium text-gray-700">
+                <Building2 className="w-4 h-4 mr-2" />
+                Categories
+                <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                  {filteredCategories.length}
+                </span>
+              </label>
+            </div>
+            
+            {/* Search and Filter */}
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search categories..."
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowEmptyCategories(!showEmptyCategories)}
+                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
+                    !showEmptyCategories 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Filter className="w-3 h-3" />
+                  Hide Empty
+                </button>
+                <button
+                  onClick={() => setShowQuickAddCategory(!showQuickAddCategory)}
+                  className="flex items-center gap-1 text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  Quick Add
+                </button>
+              </div>
+            </div>
+            
+            {/* Quick Add Category Form */}
+            {showQuickAddCategory && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-2 p-3 bg-white border border-gray-200 rounded-md"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                New Topic
-              </motion.button>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Category name..."
+                    value={quickCategoryName}
+                    onChange={(e) => setQuickCategoryName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleQuickCreateCategory()}
+                    className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleQuickCreateCategory}
+                    disabled={!quickCategoryName.trim()}
+                    className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Check className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowQuickAddCategory(false)
+                      setQuickCategoryName('')
+                    }}
+                    className="px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+            </div>
+          </div>
+
+          {/* Categories List */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {filteredCategories.length > 0 ? (
+              <div className="space-y-3">
+                {filteredCategories.map((category, index) => (
+                  <motion.div
+                    key={category.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    onClick={() => setSelectedCategory(category.id)}
+                    className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+                      selectedCategory === category.id 
+                        ? 'ring-2 ring-purple-500 bg-purple-50 border-purple-200' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div 
+                          className="w-4 h-4 rounded-full mt-1"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{category.name}</h4>
+                          {category.description && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {category.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-2">
+                            <Tag className="w-3 h-3 text-gray-400" />
+                            <span className="text-xs text-gray-500">
+                              {category.topicCount} topics
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditingCategory(category)
+                          }}
+                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          title="Edit category"
+                        >
+                          <Edit className="w-3 h-3 text-gray-500" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteCategory(category.id)
+                          }}
+                          className="p-1 hover:bg-red-50 rounded transition-colors"
+                          title="Delete category"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-500" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Building2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No categories found</p>
+                <p className="text-sm">Create your first category to get started</p>
+              </div>
             )}
           </div>
         </div>
 
-        <div className="p-4">
-          {selectedCategory ? (
-            <div className="space-y-3">
-              {getTopicsForCategory(selectedCategory).map((topic, index) => (
-                <motion.div
-                  key={topic.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+        {/* Topics Section */}
+        <div className="w-1/2 flex flex-col">
+          <div className="p-4 border-b border-border bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <label className="flex items-center text-sm font-medium text-gray-700">
+                <Target className="w-4 h-4 mr-2" />
+                Topics
+                {selectedCategory && (
+                  <>
+                    <span className="ml-2 text-gray-500">-</span>
+                    <span className="ml-2 text-gray-600">
+                      {categories.find(c => c.id === selectedCategory)?.name}
+                    </span>
+                  </>
+                )}
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                  {filteredTopics.length}
+                </span>
+              </label>
+              {selectedCategory && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleQuickAddTopic}
+                  className="flex items-center gap-1 px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div 
-                        className="w-3 h-3 rounded-full mt-1"
-                        style={{ backgroundColor: topic.color }}
-                      />
-                      <div className="flex-1">
-                        <h4 className="font-medium text-foreground">{topic.name}</h4>
-                        {topic.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {topic.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setEditingTopic(topic)}
-                        className="p-1 hover:bg-muted rounded"
-                      >
-                        <Edit className="w-3 h-3 text-muted-foreground" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTopic(topic.id)}
-                        className="p-1 hover:bg-destructive/10 rounded"
-                      >
-                        <Trash2 className="w-3 h-3 text-destructive" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-              
-              {getTopicsForCategory(selectedCategory).length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Tag className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No topics in this category</p>
-                  <p className="text-sm">Create your first topic to get started</p>
-                </div>
+                  <Plus className="w-3 h-3" />
+                  New Topic
+                </motion.button>
               )}
             </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <Palette className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Select a category to view topics</p>
-            </div>
-          )}
+            
+            {/* Search and Quick Add */}
+            {selectedCategory && (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search topics..."
+                    value={topicSearch}
+                    onChange={(e) => setTopicSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowQuickAddTopic(!showQuickAddTopic)}
+                    className="flex items-center gap-1 text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Quick Add
+                  </button>
+                </div>
+                
+                {/* Quick Add Topic Form */}
+                {showQuickAddTopic && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="p-3 bg-white border border-gray-200 rounded-md"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Topic name..."
+                        value={quickTopicName}
+                        onChange={(e) => setQuickTopicName(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleQuickCreateTopic()}
+                        className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleQuickCreateTopic}
+                        disabled={!quickTopicName.trim()}
+                        className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowQuickAddTopic(false)
+                          setQuickTopicName('')
+                        }}
+                        className="px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Topics List */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {selectedCategory ? (
+              filteredTopics.length > 0 ? (
+                <div className="space-y-3">
+                  {filteredTopics.map((topic, index) => (
+                    <motion.div
+                      key={topic.id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
+                          <div 
+                            className="w-3 h-3 rounded-full mt-1"
+                            style={{ backgroundColor: topic.color }}
+                          />
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{topic.name}</h4>
+                            {topic.description && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {topic.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setEditingTopic(topic)}
+                            className="p-1 hover:bg-gray-100 rounded transition-colors"
+                            title="Edit topic"
+                          >
+                            <Edit className="w-3 h-3 text-gray-500" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTopic(topic.id)}
+                            className="p-1 hover:bg-red-50 rounded transition-colors"
+                            title="Delete topic"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-500" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Tag className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No topics found</p>
+                  <p className="text-sm">Create your first topic to get started</p>
+                </div>
+              )
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Palette className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Select a category to view topics</p>
+                <p className="text-sm">Choose a category from the left to see its topics</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
