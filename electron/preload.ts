@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppPath: () => ipcRenderer.invoke('get-app-path'),
   getAssetsPath: () => ipcRenderer.invoke('get-assets-path'),
   
+  // File operations
+  revealInFolder: (filePath: string) => ipcRenderer.invoke('reveal-in-folder', filePath),
+  
   // Global database operations
   globalDb: {
     query: (sql: string, params?: any[]) => ipcRenderer.invoke('global-db-query', sql, params),
@@ -81,6 +84,7 @@ declare global {
       openExternal: (url: string) => Promise<void>
       getAppPath: () => Promise<string>
       getAssetsPath: () => Promise<string>
+      revealInFolder: (filePath: string) => Promise<{ success: boolean; error?: string }>
       globalDb: {
         query: (sql: string, params?: any[]) => Promise<any[]>
         execute: (sql: string, params?: any[]) => Promise<any>

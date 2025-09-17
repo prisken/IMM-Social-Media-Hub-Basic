@@ -364,6 +364,17 @@ ipcMain.handle('get-assets-path', () => {
   return join(app.getPath('userData'), 'assets')
 })
 
+// Reveal file in Finder/Explorer
+ipcMain.handle('reveal-in-folder', async (event, filePath: string) => {
+  try {
+    await shell.showItemInFolder(filePath)
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to reveal file in folder:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+})
+
 // Global database IPC handlers
 ipcMain.handle('global-db-query', async (_, sql: string, params: any[] = []) => {
   if (!globalDatabase) {

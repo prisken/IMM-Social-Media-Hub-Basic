@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Filter, Grid, List, Trash2, Eye, Download, Edit, Tag, Calendar } from 'lucide-react'
+import { Search, Filter, Grid, List, Trash2, Eye, Download, Edit, Tag, Calendar, X } from 'lucide-react'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { MediaService, createMediaService } from '@/services/media/MediaService'
 import { MediaFile } from '@/types'
@@ -23,6 +23,8 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate,
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size' | 'type'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [previewMedia, setPreviewMedia] = useState<MediaFile | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>('')
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; mediaFile: MediaFile } | null>(null)
   const [editingMedia, setEditingMedia] = useState<MediaFile | null>(null)
   const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map())
   
@@ -42,6 +44,28 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate,
       loadMediaFiles()
     }
   }, [refreshTrigger, currentOrganization])
+
+  // Load preview URL when a media item is opened in the preview modal
+  useEffect(() => {
+    const loadPreview = async () => {
+      if (!previewMedia) {
+        setPreviewUrl('')
+        return
+      }
+      if (previewMedia.mimeType.startsWith('image/')) {
+        try {
+          const url = await generatePreviewUrl(previewMedia)
+          setPreviewUrl(url)
+        } catch (e) {
+          console.error('Failed generating preview URL:', e)
+          setPreviewUrl('')
+        }
+      } else {
+        setPreviewUrl('')
+      }
+    }
+    loadPreview()
+  }, [previewMedia])
 
   // Load image URLs when mediaFiles change
   useEffect(() => {
@@ -194,6 +218,37 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate,
     return ''
   }
 
+  const handleRevealInFolder = async (mediaFile: MediaFile) => {
+    try {
+      const result = await window.electronAPI.revealInFolder(mediaFile.path)
+      if (!result.success) {
+        console.error('Failed to reveal file in folder:', result.error)
+        alert(`Failed to reveal file in folder: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Error revealing file in folder:', error)
+      alert('Error revealing file in folder')
+    }
+    setContextMenu(null)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, mediaFile: MediaFile) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      mediaFile
+    })
+  }
+
+  // Close context menu when clicking elsewhere
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null)
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -303,6 +358,7 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate,
                     isSelected ? 'ring-2 ring-primary border-primary' : 'border-border'
                   } ${viewMode === 'list' ? 'flex items-center p-3' : ''}`}
                   onClick={() => onMediaSelect?.(mediaFile)}
+                  onContextMenu={(e) => handleContextMenu(e, mediaFile)}
                 >
                   {viewMode === 'grid' ? (
                     <>
@@ -494,7 +550,7 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate,
               <div className="p-4">
                 {previewMedia.mimeType.startsWith('image/') ? (
                   <img
-                    src={generatePreviewUrl(previewMedia)}
+                    src={previewUrl}
                     alt={previewMedia.metadata.alt || previewMedia.originalName}
                     className="max-w-full max-h-[60vh] object-contain mx-auto"
                   />
@@ -520,9 +576,46 @@ export function MediaLibrary({ onMediaSelect, selectedMedia = [], onMediaUpdate,
                     <span>Uploaded:</span>
                     <span>{new Date(previewMedia.createdAt).toLocaleDateString()}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span>Path:</span>
+                    <span className="text-xs break-all max-w-xs">{previewMedia.path}</span>
+                  </div>
+                </div>
+                
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => handleRevealInFolder(previewMedia)}
+                    className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm"
+                  >
+                    Reveal in Finder
+                  </button>
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Context Menu */}
+      <AnimatePresence>
+        {contextMenu && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed bg-card border border-border rounded-md shadow-lg z-50 py-1"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => handleRevealInFolder(contextMenu.mediaFile)}
+              className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors"
+            >
+              Reveal in Finder
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
