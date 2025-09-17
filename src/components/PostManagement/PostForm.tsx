@@ -30,7 +30,8 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
   const [hashtagInput, setHashtagInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState<MediaFile[]>([])
-  const [isTranslating, setIsTranslating] = useState(false)
+  const [isTranslatingTitle, setIsTranslatingTitle] = useState(false)
+  const [isTranslatingContent, setIsTranslatingContent] = useState(false)
 
   useEffect(() => {
     if (post) {
@@ -117,7 +118,7 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
   const handleTranslateToChinese = async () => {
     if (!formData.content.trim()) return
     
-    setIsTranslating(true)
+    setIsTranslatingContent(true)
     try {
       const aiService = AIService.getInstance()
       const translatedContent = await aiService.translateText(formData.content, 'chinese')
@@ -134,14 +135,14 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
       console.error('Translation error:', error)
       alert('Translation failed. Please try again later.')
     } finally {
-      setIsTranslating(false)
+      setIsTranslatingContent(false)
     }
   }
 
   const handleTranslateToEnglish = async () => {
     if (!formData.content.trim()) return
     
-    setIsTranslating(true)
+    setIsTranslatingContent(true)
     try {
       const aiService = AIService.getInstance()
       const translatedContent = await aiService.translateText(formData.content, 'english')
@@ -158,14 +159,14 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
       console.error('Translation error:', error)
       alert('Translation failed. Please try again later.')
     } finally {
-      setIsTranslating(false)
+      setIsTranslatingContent(false)
     }
   }
 
   const handleTranslateTitleToChinese = async () => {
     if (!formData.title.trim()) return
     
-    setIsTranslating(true)
+    setIsTranslatingTitle(true)
     try {
       const aiService = AIService.getInstance()
       const translatedTitle = await aiService.translateText(formData.title, 'chinese')
@@ -182,14 +183,14 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
       console.error('Translation error:', error)
       alert('Translation failed. Please try again later.')
     } finally {
-      setIsTranslating(false)
+      setIsTranslatingTitle(false)
     }
   }
 
   const handleTranslateTitleToEnglish = async () => {
     if (!formData.title.trim()) return
     
-    setIsTranslating(true)
+    setIsTranslatingTitle(true)
     try {
       const aiService = AIService.getInstance()
       const translatedTitle = await aiService.translateText(formData.title, 'english')
@@ -206,7 +207,7 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
       console.error('Translation error:', error)
       alert('Translation failed. Please try again later.')
     } finally {
-      setIsTranslating(false)
+      setIsTranslatingTitle(false)
     }
   }
 
@@ -249,20 +250,20 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
                   <button
                     type="button"
                     onClick={handleTranslateTitleToChinese}
-                    disabled={!formData.title.trim() || isTranslating}
+                    disabled={!formData.title.trim() || isTranslatingTitle}
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Languages className="w-3 h-3" />
-                    {isTranslating ? '...' : '中文'}
+                    {isTranslatingTitle ? '...' : '中文'}
                   </button>
                   <button
                     type="button"
                     onClick={handleTranslateTitleToEnglish}
-                    disabled={!formData.title.trim() || isTranslating}
+                    disabled={!formData.title.trim() || isTranslatingTitle}
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Languages className="w-3 h-3" />
-                    {isTranslating ? '...' : 'EN'}
+                    {isTranslatingTitle ? '...' : 'EN'}
                   </button>
                 </div>
               </div>
@@ -286,20 +287,20 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
                   <button
                     type="button"
                     onClick={handleTranslateToChinese}
-                    disabled={!formData.content.trim() || isTranslating}
+                    disabled={!formData.content.trim() || isTranslatingContent}
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Languages className="w-3 h-3" />
-                    {isTranslating ? '...' : '中文'}
+                    {isTranslatingContent ? '...' : '中文'}
                   </button>
                   <button
                     type="button"
                     onClick={handleTranslateToEnglish}
-                    disabled={!formData.content.trim() || isTranslating}
+                    disabled={!formData.content.trim() || isTranslatingContent}
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Languages className="w-3 h-3" />
-                    {isTranslating ? '...' : 'EN'}
+                    {isTranslatingContent ? '...' : 'EN'}
                   </button>
                 </div>
               </div>

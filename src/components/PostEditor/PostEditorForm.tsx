@@ -33,7 +33,8 @@ export function PostEditorForm({
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
-  const [isTranslating, setIsTranslating] = useState(false)
+  const [isTranslatingTitle, setIsTranslatingTitle] = useState(false)
+  const [isTranslatingContent, setIsTranslatingContent] = useState(false)
 
   const { register, handleSubmit, watch, setValue, formState: { errors }, reset } = useForm<PostFormData>({
     defaultValues: {
@@ -233,7 +234,7 @@ export function PostEditorForm({
     const content = watch('content')
     if (!content?.trim()) return
     
-    setIsTranslating(true)
+    setIsTranslatingContent(true)
     try {
       const aiService = AIService.getInstance()
       const translatedContent = await aiService.translateText(content, 'chinese')
@@ -250,7 +251,7 @@ export function PostEditorForm({
       console.error('Translation error:', error)
       setError('Translation failed. Please try again.')
     } finally {
-      setIsTranslating(false)
+      setIsTranslatingContent(false)
     }
   }
 
@@ -258,7 +259,7 @@ export function PostEditorForm({
     const content = watch('content')
     if (!content?.trim()) return
     
-    setIsTranslating(true)
+    setIsTranslatingContent(true)
     try {
       const aiService = AIService.getInstance()
       const translatedContent = await aiService.translateText(content, 'english')
@@ -275,7 +276,7 @@ export function PostEditorForm({
       console.error('Translation error:', error)
       setError('Translation failed. Please try again.')
     } finally {
-      setIsTranslating(false)
+      setIsTranslatingContent(false)
     }
   }
 
@@ -283,7 +284,7 @@ export function PostEditorForm({
     const title = watch('title')
     if (!title?.trim()) return
     
-    setIsTranslating(true)
+    setIsTranslatingTitle(true)
     try {
       const aiService = AIService.getInstance()
       const translatedTitle = await aiService.translateText(title, 'chinese')
@@ -300,7 +301,7 @@ export function PostEditorForm({
       console.error('Translation error:', error)
       setError('Translation failed. Please try again.')
     } finally {
-      setIsTranslating(false)
+      setIsTranslatingTitle(false)
     }
   }
 
@@ -308,7 +309,7 @@ export function PostEditorForm({
     const title = watch('title')
     if (!title?.trim()) return
     
-    setIsTranslating(true)
+    setIsTranslatingTitle(true)
     try {
       const aiService = AIService.getInstance()
       const translatedTitle = await aiService.translateText(title, 'english')
@@ -325,7 +326,7 @@ export function PostEditorForm({
       console.error('Translation error:', error)
       setError('Translation failed. Please try again.')
     } finally {
-      setIsTranslating(false)
+      setIsTranslatingTitle(false)
     }
   }
 
@@ -419,20 +420,20 @@ export function PostEditorForm({
                 <button
                   type="button"
                   onClick={handleTranslateTitleToChinese}
-                  disabled={!watch('title')?.trim() || isTranslating || isLoading}
+                  disabled={!watch('title')?.trim() || isTranslatingTitle || isLoading}
                   className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Languages className="w-3 h-3" />
-                  {isTranslating ? '...' : '中文'}
+                  {isTranslatingTitle ? '...' : '中文'}
                 </button>
                 <button
                   type="button"
                   onClick={handleTranslateTitleToEnglish}
-                  disabled={!watch('title')?.trim() || isTranslating || isLoading}
+                  disabled={!watch('title')?.trim() || isTranslatingTitle || isLoading}
                   className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Languages className="w-3 h-3" />
-                  {isTranslating ? '...' : 'EN'}
+                  {isTranslatingTitle ? '...' : 'EN'}
                 </button>
               </div>
             </div>
@@ -545,20 +546,20 @@ export function PostEditorForm({
                 <button
                   type="button"
                   onClick={handleTranslateToChinese}
-                  disabled={!watch('content')?.trim() || isTranslating || isLoading}
+                  disabled={!watch('content')?.trim() || isTranslatingContent || isLoading}
                   className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Languages className="w-3 h-3" />
-                  {isTranslating ? '...' : '中文'}
+                  {isTranslatingContent ? '...' : '中文'}
                 </button>
                 <button
                   type="button"
                   onClick={handleTranslateToEnglish}
-                  disabled={!watch('content')?.trim() || isTranslating || isLoading}
+                  disabled={!watch('content')?.trim() || isTranslatingContent || isLoading}
                   className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Languages className="w-3 h-3" />
-                  {isTranslating ? '...' : 'EN'}
+                  {isTranslatingContent ? '...' : 'EN'}
                 </button>
               </div>
             </div>

@@ -1296,12 +1296,20 @@ RULES:
 TRANSLATION:`
 
       console.log(`🔄 Translating text from ${sourceLanguage} to ${targetLang}`)
-      const response = await this.sendMessage(prompt, undefined, {
+      
+      // Add timeout to prevent getting stuck
+      const translationPromise = this.sendMessage(prompt, undefined, {
         model: 'llama3.2:3b',
         temperature: 0.0,
         top_p: 0.1,
         max_tokens: 500
       })
+      
+      const timeoutPromise = new Promise<string>((_, reject) => {
+        setTimeout(() => reject(new Error('Translation timeout after 30 seconds')), 30000)
+      })
+      
+      const response = await Promise.race([translationPromise, timeoutPromise])
       
       // Clean up the response to remove any extra formatting
       let translatedText = response.trim()
