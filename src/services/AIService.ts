@@ -319,15 +319,26 @@ REASONING: [your detailed reasoning here]`
       if (window.electronAPI?.ollama?.checkStatus) {
         const bundledStatus = await window.electronAPI.ollama.checkStatus()
         if (bundledStatus?.available) {
+          console.log('✅ Bundled Ollama is available')
           return true
         }
+        console.log('⚠️ Bundled Ollama not available, checking external...')
       }
       
       // Fallback to external Ollama
+      console.log('🔍 Checking external Ollama at:', this.ollamaEndpoint)
       const response = await fetch(`${this.ollamaEndpoint}/api/tags`)
-      return response.ok
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ External Ollama is available with models:', data.models?.length || 0)
+        return true
+      } else {
+        console.log('❌ External Ollama not responding:', response.status)
+        return false
+      }
     } catch (error) {
-      console.error('Ollama not available:', error)
+      console.error('❌ Ollama not available:', error)
       return false
     }
   }
@@ -357,42 +368,59 @@ REASONING: [your detailed reasoning here]`
   /**
    * Send a message to the AI model
    */
-  public async sendMessage(message: string, context?: any): Promise<string> {
+  public async sendMessage(
+    message: string,
+    context?: any,
+    overrides?: {
+      model?: string
+      temperature?: number
+      top_p?: number
+      max_tokens?: number
+    }
+  ): Promise<string> {
     try {
       // Try bundled Ollama first
       if (window.electronAPI?.ollama?.generate) {
+        console.log('🔄 Trying bundled Ollama...')
         const bundledResponse = await window.electronAPI.ollama.generate(this.model, this.buildPrompt(message, context))
         if (bundledResponse.response) {
+          console.log('✅ Bundled Ollama response received')
           return bundledResponse.response
         }
+        console.log('⚠️ Bundled Ollama no response, trying external...')
       }
       
       // Fallback to external Ollama
+      console.log('🔄 Using external Ollama at:', this.ollamaEndpoint)
+      const prompt = this.buildPrompt(message, context)
+      console.log('📝 Sending prompt (length:', prompt.length, 'chars)')
+      
       const response = await fetch(`${this.ollamaEndpoint}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: this.model,
-          prompt: this.buildPrompt(message, context),
+          model: overrides?.model || this.model,
+          prompt: prompt,
           stream: false,
           options: {
-            temperature: 0.7,
-            top_p: 0.9,
-            max_tokens: 2000
+            temperature: overrides?.temperature ?? 0.7,
+            top_p: overrides?.top_p ?? 0.9,
+            max_tokens: overrides?.max_tokens ?? 2000
           }
         })
       })
-
+ 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-
+ 
       const data = await response.json()
+      console.log('✅ External Ollama response received (length:', data.response?.length || 0, 'chars)')
       return data.response || 'Sorry, I encountered an error processing your request.'
     } catch (error) {
-      console.error('Error sending message to AI:', error)
+      console.error('❌ Error sending message to AI:', error)
       return 'I apologize, but I\'m having trouble connecting to the AI service. Please make sure Ollama is running.'
     }
   }
@@ -1236,4 +1264,215 @@ Make it engaging, platform-appropriate, and include relevant hashtags. Keep it u
       return []
     }
   }
+
+  /**
+   * Translate text between Chinese and English using AI
+   */
+  public async translateText(text: string, targetLanguage: 'chinese' | 'english'): Promise<string> {
+    try {
+      // Check if AI service is available first
+      const isAvailable = await this.checkOllamaStatus()
+      if (!isAvailable) {
+        throw new Error('AI service is not available')
+      }
+
+      const sourceLanguage = targetLanguage === 'chinese' ? 'English' : 'Chinese'
+      const targetLang = targetLanguage === 'chinese' ? 'Chinese' : 'English'
+      
+      const prompt = `You are a translation machine. Your ONLY job is to translate text.
+
+SOURCE LANGUAGE: ${sourceLanguage}
+TARGET LANGUAGE: ${targetLang}
+
+TEXT TO TRANSLATE: "${text}"
+
+RULES:
+1. Translate the text from ${sourceLanguage} to ${targetLang}
+2. Return ONLY the translated text
+3. Do NOT add explanations, comments, or extra text
+4. Do NOT repeat the original text
+5. Do NOT say "I'd be happy to help" or similar phrases
+
+TRANSLATION:`
+
+      console.log(`🔄 Translating text from ${sourceLanguage} to ${targetLang}`)
+      const response = await this.sendMessage(prompt, undefined, {
+        model: 'llama3.2:3b',
+        temperature: 0.0,
+        top_p: 0.1,
+        max_tokens: 500
+      })
+      
+      // Clean up the response to remove any extra formatting
+      let translatedText = response.trim()
+      
+      // Remove common AI response patterns
+      const unwantedPatterns = [
+        'I\'d be happy to help',
+        'I can help you',
+        'Let me translate',
+        'Here\'s the translation',
+        'Here is the translation',
+        'The translation is',
+        'Content Organization',
+        'Organize your content'
+      ]
+      
+      // Special patterns that indicate the AI is not translating properly
+      const badResponsePatterns = [
+        'Categories: {}',
+        'Topics: {}',
+        'Important Note:',
+        'Translation:',
+        'Let me know if you need any further assistance',
+        'I\'d be happy to help',
+        'Content Organization Tips',
+        'Organize your content'
+      ]
+      
+      // Check if response contains bad patterns that indicate poor AI response
+      const hasBadResponse = badResponsePatterns.some(pattern => 
+        translatedText.includes(pattern)
+      )
+      
+      // Check if AI returned the exact same text (no translation happened)
+      const isSameText = translatedText.trim().toLowerCase() === text.trim().toLowerCase()
+      
+      if (hasBadResponse || isSameText) {
+        console.log('⚠️ AI returned poor response or no translation, using fallback')
+        console.log('Original text:', text)
+        console.log('AI response:', translatedText)
+        console.log('Is same text:', isSameText)
+        translatedText = this.getFallbackTranslation(text, targetLanguage)
+      } else {
+        // Check if response contains unwanted conversational patterns
+        const hasUnwantedPattern = unwantedPatterns.some(pattern => 
+          translatedText.toLowerCase().includes(pattern.toLowerCase())
+        )
+        
+        if (hasUnwantedPattern) {
+          // Try to extract the actual translation
+          const lines = translatedText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+          
+          // Look for lines that don't contain unwanted patterns
+          const cleanLines = lines.filter(line => 
+            !unwantedPatterns.some(pattern => 
+              line.toLowerCase().includes(pattern.toLowerCase())
+            )
+          )
+          
+          if (cleanLines.length > 0) {
+            // Take the first clean line that looks like a translation
+            translatedText = cleanLines[0]
+          } else {
+            // If no clean lines found, try to extract from the original text
+            // Look for content after common separators
+            const separators = ['Translation:', 'translation:', ':', '：']
+            for (const separator of separators) {
+              const parts = translatedText.split(separator)
+              if (parts.length > 1) {
+                const candidate = parts[1].trim()
+                if (candidate.length > 0 && !unwantedPatterns.some(pattern => 
+                  candidate.toLowerCase().includes(pattern.toLowerCase())
+                )) {
+                  translatedText = candidate
+                  break
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Final cleanup - remove quotes if the entire response is wrapped in quotes
+      if (translatedText.startsWith('"') && translatedText.endsWith('"')) {
+        translatedText = translatedText.slice(1, -1)
+      }
+      
+      console.log(`✅ Translation completed: ${translatedText.substring(0, 100)}...`)
+      return translatedText
+      
+    } catch (error) {
+      console.error('Error translating text:', error)
+      
+      // Fallback message
+      const fallbackMessage = targetLanguage === 'chinese' 
+        ? '翻译服务暂时不可用，请稍后重试。' 
+        : 'Translation service is temporarily unavailable. Please try again later.'
+      
+      return fallbackMessage
+    }
+  }
+
+  /**
+   * Fallback translation using simple rules for common phrases
+   */
+  private getFallbackTranslation(text: string, targetLanguage: 'chinese' | 'english'): string {
+    const commonTranslations: Record<string, { chinese: string; english: string }> = {
+      'Content Organization Tips': {
+        chinese: '内容组织建议',
+        english: 'Content Organization Tips'
+      },
+      'Important Note:': {
+        chinese: '重要说明：',
+        english: 'Important Note:'
+      },
+      'Let me know if you need any further assistance!': {
+        chinese: '如果您需要任何进一步的帮助，请告诉我！',
+        english: 'Let me know if you need any further assistance!'
+      },
+      'Organize your content with categories and topics for better management. This helps you maintain consistency and makes it easier to find specific posts later.': {
+        chinese: '使用类别和主题来组织您的内容，以便更好地管理。这有助于您保持一致性，并更容易找到特定的帖子。',
+        english: 'Organize your content with categories and topics for better management. This helps you maintain consistency and makes it easier to find specific posts later.'
+      },
+      'Categories:': {
+        chinese: '类别：',
+        english: 'Categories:'
+      },
+      'Topics:': {
+        chinese: '话题：',
+        english: 'Topics:'
+      },
+      'Hello': {
+        chinese: '你好',
+        english: 'Hello'
+      },
+      'Thank you': {
+        chinese: '谢谢',
+        english: 'Thank you'
+      },
+      'Welcome': {
+        chinese: '欢迎',
+        english: 'Welcome'
+      },
+      'Good morning': {
+        chinese: '早上好',
+        english: 'Good morning'
+      },
+      'Good afternoon': {
+        chinese: '下午好',
+        english: 'Good afternoon'
+      },
+      'Good evening': {
+        chinese: '晚上好',
+        english: 'Good evening'
+      }
+    }
+
+    // Check for exact matches first
+    if (commonTranslations[text]) {
+      return commonTranslations[text][targetLanguage]
+    }
+
+    // Check for partial matches
+    for (const [key, translations] of Object.entries(commonTranslations)) {
+      if (text.includes(key)) {
+        return translations[targetLanguage]
+      }
+    }
+
+    // If no match found, return the original text
+    return text
+  }
+
 }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Save, X, Hash, Image, Video, Calendar, Globe } from 'lucide-react'
+import { ArrowLeft, Save, X, Hash, Image, Video, Calendar, Globe, Languages } from 'lucide-react'
 import { Post, Category, Topic, MediaFile } from '@/types'
 import { MediaManagement } from '@/components/MediaUpload/MediaManagement'
+import { AIService } from '@/services/AIService'
 
 interface PostFormProps {
   post?: Post | null
@@ -29,6 +30,7 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
   const [hashtagInput, setHashtagInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState<MediaFile[]>([])
+  const [isTranslating, setIsTranslating] = useState(false)
 
   useEffect(() => {
     if (post) {
@@ -112,6 +114,102 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
     return topics.filter(topic => topic.categoryId === formData.categoryId)
   }
 
+  const handleTranslateToChinese = async () => {
+    if (!formData.content.trim()) return
+    
+    setIsTranslating(true)
+    try {
+      const aiService = AIService.getInstance()
+      const translatedContent = await aiService.translateText(formData.content, 'chinese')
+      
+      // Check if we got an error message instead of translation
+      if (translatedContent.includes('Translation service is temporarily unavailable') || 
+          translatedContent.includes('翻译服务暂时不可用')) {
+        alert('AI translation service is not available. Please make sure Ollama is running or try again later.')
+        return
+      }
+      
+      setFormData(prev => ({ ...prev, content: translatedContent }))
+    } catch (error) {
+      console.error('Translation error:', error)
+      alert('Translation failed. Please try again later.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const handleTranslateToEnglish = async () => {
+    if (!formData.content.trim()) return
+    
+    setIsTranslating(true)
+    try {
+      const aiService = AIService.getInstance()
+      const translatedContent = await aiService.translateText(formData.content, 'english')
+      
+      // Check if we got an error message instead of translation
+      if (translatedContent.includes('Translation service is temporarily unavailable') || 
+          translatedContent.includes('翻译服务暂时不可用')) {
+        alert('AI translation service is not available. Please make sure Ollama is running or try again later.')
+        return
+      }
+      
+      setFormData(prev => ({ ...prev, content: translatedContent }))
+    } catch (error) {
+      console.error('Translation error:', error)
+      alert('Translation failed. Please try again later.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const handleTranslateTitleToChinese = async () => {
+    if (!formData.title.trim()) return
+    
+    setIsTranslating(true)
+    try {
+      const aiService = AIService.getInstance()
+      const translatedTitle = await aiService.translateText(formData.title, 'chinese')
+      
+      // Check if we got an error message instead of translation
+      if (translatedTitle.includes('Translation service is temporarily unavailable') || 
+          translatedTitle.includes('翻译服务暂时不可用')) {
+        alert('AI translation service is not available. Please make sure Ollama is running or try again later.')
+        return
+      }
+      
+      setFormData(prev => ({ ...prev, title: translatedTitle }))
+    } catch (error) {
+      console.error('Translation error:', error)
+      alert('Translation failed. Please try again later.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const handleTranslateTitleToEnglish = async () => {
+    if (!formData.title.trim()) return
+    
+    setIsTranslating(true)
+    try {
+      const aiService = AIService.getInstance()
+      const translatedTitle = await aiService.translateText(formData.title, 'english')
+      
+      // Check if we got an error message instead of translation
+      if (translatedTitle.includes('Translation service is temporarily unavailable') || 
+          translatedTitle.includes('翻译服务暂时不可用')) {
+        alert('AI translation service is not available. Please make sure Ollama is running or try again later.')
+        return
+      }
+      
+      setFormData(prev => ({ ...prev, title: translatedTitle }))
+    } catch (error) {
+      console.error('Translation error:', error)
+      alert('Translation failed. Please try again later.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
@@ -143,9 +241,31 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
             
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Post Title *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-foreground">
+                  Post Title *
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTranslateTitleToChinese}
+                    disabled={!formData.title.trim() || isTranslating}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Languages className="w-3 h-3" />
+                    {isTranslating ? '...' : '中文'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTranslateTitleToEnglish}
+                    disabled={!formData.title.trim() || isTranslating}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Languages className="w-3 h-3" />
+                    {isTranslating ? '...' : 'EN'}
+                  </button>
+                </div>
+              </div>
               <input
                 type="text"
                 value={formData.title}
@@ -158,9 +278,31 @@ export function PostForm({ post, categories, topics, onSave, onCancel }: PostFor
 
             {/* Content */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Content *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-foreground">
+                  Content *
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTranslateToChinese}
+                    disabled={!formData.content.trim() || isTranslating}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Languages className="w-3 h-3" />
+                    {isTranslating ? '...' : '中文'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTranslateToEnglish}
+                    disabled={!formData.content.trim() || isTranslating}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Languages className="w-3 h-3" />
+                    {isTranslating ? '...' : 'EN'}
+                  </button>
+                </div>
+              </div>
               <textarea
                 value={formData.content}
                 onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}

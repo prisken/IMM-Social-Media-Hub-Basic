@@ -27,7 +27,14 @@ async function initializeOllama() {
       console.log('Ollama not running, starting...')
       const metadata = await ollama.getMetadata('latest')
       console.log('Starting Ollama server with metadata:', metadata)
-      await ollama.serve(metadata.version)
+      
+      // Add timeout wrapper for the serve operation
+      const servePromise = ollama.serve(metadata.version)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Ollama server startup timeout')), 30000) // 30 seconds
+      })
+      
+      await Promise.race([servePromise, timeoutPromise])
       console.log('Ollama server started successfully')
     } else {
       console.log('Ollama server is already running')

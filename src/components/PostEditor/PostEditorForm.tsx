@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
-import { Save, Eye, Calendar, Hash, Image, Video, Type, Send, AlertCircle, Plus, X } from 'lucide-react'
+import { Save, Eye, Calendar, Hash, Image, Video, Type, Send, AlertCircle, Plus, X, Languages } from 'lucide-react'
 import { apiService } from '@/services/ApiService'
 import { createMediaService } from '@/services/media/MediaService'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { PostFormData, Category, Topic, Post } from '@/types'
 import { MediaUpload } from '@/components/MediaUpload/MediaUpload'
+import { AIService } from '@/services/AIService'
 
 interface PostEditorFormProps {
   selectedPostId: string | null
@@ -32,6 +33,7 @@ export function PostEditorForm({
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
+  const [isTranslating, setIsTranslating] = useState(false)
 
   const { register, handleSubmit, watch, setValue, formState: { errors }, reset } = useForm<PostFormData>({
     defaultValues: {
@@ -227,6 +229,106 @@ export function PostEditorForm({
     { id: 'carousel', name: 'Carousel', icon: Image }
   ]
 
+  const handleTranslateToChinese = async () => {
+    const content = watch('content')
+    if (!content?.trim()) return
+    
+    setIsTranslating(true)
+    try {
+      const aiService = AIService.getInstance()
+      const translatedContent = await aiService.translateText(content, 'chinese')
+      
+      // Check if we got an error message instead of translation
+      if (translatedContent.includes('Translation service is temporarily unavailable') || 
+          translatedContent.includes('翻译服务暂时不可用')) {
+        setError('AI translation service is not available. Please make sure Ollama is running or try again later.')
+        return
+      }
+      
+      setValue('content', translatedContent)
+    } catch (error) {
+      console.error('Translation error:', error)
+      setError('Translation failed. Please try again.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const handleTranslateToEnglish = async () => {
+    const content = watch('content')
+    if (!content?.trim()) return
+    
+    setIsTranslating(true)
+    try {
+      const aiService = AIService.getInstance()
+      const translatedContent = await aiService.translateText(content, 'english')
+      
+      // Check if we got an error message instead of translation
+      if (translatedContent.includes('Translation service is temporarily unavailable') || 
+          translatedContent.includes('翻译服务暂时不可用')) {
+        setError('AI translation service is not available. Please make sure Ollama is running or try again later.')
+        return
+      }
+      
+      setValue('content', translatedContent)
+    } catch (error) {
+      console.error('Translation error:', error)
+      setError('Translation failed. Please try again.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const handleTranslateTitleToChinese = async () => {
+    const title = watch('title')
+    if (!title?.trim()) return
+    
+    setIsTranslating(true)
+    try {
+      const aiService = AIService.getInstance()
+      const translatedTitle = await aiService.translateText(title, 'chinese')
+      
+      // Check if we got an error message instead of translation
+      if (translatedTitle.includes('Translation service is temporarily unavailable') || 
+          translatedTitle.includes('翻译服务暂时不可用')) {
+        setError('AI translation service is not available. Please make sure Ollama is running or try again later.')
+        return
+      }
+      
+      setValue('title', translatedTitle)
+    } catch (error) {
+      console.error('Translation error:', error)
+      setError('Translation failed. Please try again.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const handleTranslateTitleToEnglish = async () => {
+    const title = watch('title')
+    if (!title?.trim()) return
+    
+    setIsTranslating(true)
+    try {
+      const aiService = AIService.getInstance()
+      const translatedTitle = await aiService.translateText(title, 'english')
+      
+      // Check if we got an error message instead of translation
+      if (translatedTitle.includes('Translation service is temporarily unavailable') || 
+          translatedTitle.includes('翻译服务暂时不可用')) {
+        setError('AI translation service is not available. Please make sure Ollama is running or try again later.')
+        return
+      }
+      
+      setValue('title', translatedTitle)
+    } catch (error) {
+      console.error('Translation error:', error)
+      setError('Translation failed. Please try again.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
   if (!selectedPostId || selectedPostId === '') {
     return (
       <div className="h-full flex items-center justify-center p-6">
@@ -311,7 +413,29 @@ export function PostEditorForm({
 
           {/* Title */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Post Title</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">Post Title</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTranslateTitleToChinese}
+                  disabled={!watch('title')?.trim() || isTranslating || isLoading}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  {isTranslating ? '...' : '中文'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTranslateTitleToEnglish}
+                  disabled={!watch('title')?.trim() || isTranslating || isLoading}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  {isTranslating ? '...' : 'EN'}
+                </button>
+              </div>
+            </div>
             <input
               {...register('title', { required: 'Title is required' })}
               placeholder="Enter post title..."
@@ -415,7 +539,29 @@ export function PostEditorForm({
 
           {/* Content */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Content</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">Content</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTranslateToChinese}
+                  disabled={!watch('content')?.trim() || isTranslating || isLoading}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  {isTranslating ? '...' : '中文'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTranslateToEnglish}
+                  disabled={!watch('content')?.trim() || isTranslating || isLoading}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  {isTranslating ? '...' : 'EN'}
+                </button>
+              </div>
+            </div>
             <textarea
               {...register('content', { required: 'Content is required' })}
               placeholder="Write your post content..."
