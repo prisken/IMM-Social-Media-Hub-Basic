@@ -58,6 +58,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exists: (path: string) => ipcRenderer.invoke('fs-exists', path),
     serveMediaFile: (path: string) => ipcRenderer.invoke('serve-media-file', path),
   },
+  
+  // Ollama AI operations
+  ollama: {
+    checkStatus: () => ipcRenderer.invoke('ollama-check-status'),
+    getModels: () => ipcRenderer.invoke('ollama-get-models'),
+    pullModel: (modelName: string) => ipcRenderer.invoke('ollama-pull-model', modelName),
+    generate: (modelName: string, prompt: string) => ipcRenderer.invoke('ollama-generate', modelName, prompt),
+  },
+  
+  // Generic invoke method for direct IPC calls
+  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
 })
 
 // Type definitions for the exposed API
@@ -87,16 +98,23 @@ declare global {
         deleteUser: (userId: string) => Promise<any>
         deleteOrganization: (organizationId: string) => Promise<any>
       }
-    fs: {
-      readFile: (path: string) => Promise<Buffer>
-      writeFile: (path: string, data: Uint8Array) => Promise<void>
-      copyFile: (src: string, dest: string) => Promise<void>
-      deleteFile: (path: string) => Promise<void>
-      createDirectory: (path: string) => Promise<void>
-      listDirectory: (path: string) => Promise<string[]>
-      exists: (path: string) => Promise<boolean>
-      serveMediaFile: (path: string) => Promise<string>
-    }
+      fs: {
+        readFile: (path: string) => Promise<Buffer>
+        writeFile: (path: string, data: Uint8Array) => Promise<void>
+        copyFile: (src: string, dest: string) => Promise<void>
+        deleteFile: (path: string) => Promise<void>
+        createDirectory: (path: string) => Promise<void>
+        listDirectory: (path: string) => Promise<string[]>
+        exists: (path: string) => Promise<boolean>
+        serveMediaFile: (path: string) => Promise<string>
+      }
+      ollama: {
+        checkStatus: () => Promise<{ available: boolean; error?: string }>
+        getModels: () => Promise<{ models: any[]; error?: string }>
+        pullModel: (modelName: string) => Promise<{ success: boolean; error?: string }>
+        generate: (modelName: string, prompt: string) => Promise<{ response: string; error?: string }>
+      }
+      invoke: (channel: string, ...args: any[]) => Promise<any>
     }
   }
 }

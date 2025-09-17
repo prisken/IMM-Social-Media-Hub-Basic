@@ -270,3 +270,112 @@ export interface IpcEvents {
   'calendar-event-updated': CalendarEvent
   'calendar-event-deleted': { id: string }
 }
+
+// AI System Types
+export interface AIChatMessage {
+  id: string
+  type: 'user' | 'ai'
+  content: string
+  timestamp: string
+  metadata?: {
+    isClarification?: boolean
+    isConfirmation?: boolean
+    isQuestion?: boolean
+    hasRecommendations?: boolean
+    contentPlan?: AIContentPlan
+    postPreview?: AIPostPreview[]
+    actionType?: 'create' | 'edit' | 'remove' | 'add'
+  }
+}
+
+export interface AIPostPreview {
+  id: string
+  title: string
+  content: string
+  categoryId: string
+  topicId: string
+  platform: SocialPlatform
+  type: PostType
+  scheduledAt: string
+  hashtags: string[]
+  callToAction?: string
+  estimatedEngagement?: 'low' | 'medium' | 'high'
+  reasoning?: string
+}
+
+export interface AISchedulingRecommendation {
+  platform: SocialPlatform
+  optimalFrequency: {
+    daily: number
+    weekly: number
+    monthly: number
+  }
+  bestTimes: string[]
+  bestDays: string[]
+  reasoning: string
+  engagementTips: string[]
+}
+
+export interface AIContentPlan {
+  id: string
+  organizationId: string
+  platform: SocialPlatform
+  platforms?: SocialPlatform[] // For multi-platform support
+  dateRange: {
+    start: string
+    end: string
+  }
+  totalPosts: number
+  postingSchedule: string[]
+  targetAudience: string
+  contentFocus: string[]
+  brandVoice: string
+  posts: AIPostPreview[]
+  schedulingRecommendation: AISchedulingRecommendation
+  createdAt: string
+  status: 'draft' | 'confirmed' | 'created'
+}
+
+export interface AIDirectiveContext {
+  platform?: SocialPlatform
+  platforms?: SocialPlatform[] // For multi-platform support
+  dateRange?: {
+    start: string
+    end: string
+  }
+  postCount?: number
+  brand?: string
+  targetAudience?: string
+  contentTypes?: string[]
+  topics?: string[]
+  brandVoice?: string
+  hashtags?: string[]
+  callToActions?: boolean
+  postingTimes?: string[]
+  confirmedUnderstanding?: boolean // Added for Step 2 confirmation
+  businessContext?: {
+    companyName?: string
+    mission?: string
+    vision?: string
+    industry?: string
+    services?: string[]
+  }
+}
+
+export interface AIClarificationQuestion {
+  id: string
+  question: string
+  type: 'text' | 'select' | 'multi-select' | 'date-range' | 'number'
+  options?: string[]
+  required: boolean
+  context: string
+}
+
+export interface AIResponse {
+  message: string
+  clarificationQuestions?: AIClarificationQuestion[]
+  contentPlan?: AIContentPlan
+  action?: 'clarify' | 'preview' | 'confirm' | 'create' | 'error' | 'success'
+  metadata?: any
+  shouldCreatePosts?: boolean
+}

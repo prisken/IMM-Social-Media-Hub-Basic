@@ -13,6 +13,7 @@ A comprehensive desktop application for organizing, creating, and scheduling soc
 - **Multi-Platform Support**: Instagram, Facebook, Twitter, LinkedIn
 
 ### 🚀 Advanced Features
+- **AI Assistant**: Local AI-powered content creation and scheduling
 - **Real-time Preview**: Live preview of posts as you edit
 - **Bulk Operations**: Multi-select and batch actions
 - **Search & Filtering**: Advanced search with multiple filters
@@ -28,6 +29,7 @@ A comprehensive desktop application for organizing, creating, and scheduling soc
 - **Animations**: Framer Motion
 - **Database**: SQLite
 - **State Management**: React Query
+- **AI**: Ollama (Local LLM)
 - **Forms**: React Hook Form
 - **Drag & Drop**: React DnD
 
@@ -146,6 +148,32 @@ src/
 3. Use color coding for visual organization
 4. Search and filter content
 
+## AI Assistant
+
+The app includes a powerful AI assistant that can create and schedule social media posts using natural language commands. The AI runs completely locally on your machine using Ollama, ensuring your data stays private.
+
+### Features
+- **Conversational Interface**: Chat with the AI using natural language
+- **Smart Content Generation**: Creates platform-optimized posts
+- **Intelligent Scheduling**: Suggests optimal posting times
+- **Brand Consistency**: Maintains your brand voice across all content
+- **Double Confirmation**: Review and edit before creating posts
+
+### Quick Start
+1. Install Ollama from [https://ollama.ai](https://ollama.ai)
+2. Download a model: `ollama pull llama3:8b`
+3. Start Ollama: `ollama serve`
+4. Click the AI Assistant button (sparkles icon) in the app header
+
+### Example Commands
+```
+"Create 5 Instagram posts for my fitness brand next week"
+"Generate LinkedIn content about AI trends"
+"Make a 2-week Facebook calendar for my restaurant"
+```
+
+For detailed setup instructions, see [AI_SETUP_GUIDE.md](./AI_SETUP_GUIDE.md).
+
 ## Configuration
 
 ### Environment Variables
@@ -177,9 +205,10 @@ For support and questions, please open an issue in the GitHub repository.
 
 ## Roadmap
 
+- [x] AI-powered content creation and scheduling
 - [ ] Cloud sync capabilities
 - [ ] Team collaboration features
 - [ ] Advanced analytics
 - [ ] API integrations
 - [ ] Mobile companion app
-- [ ] AI-powered content suggestions
+- [ ] Enhanced AI features (image generation, trend analysis)

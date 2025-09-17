@@ -40,9 +40,9 @@ export function CalendarList({
   const getTopic = (topicId: string) => 
     topics.find(topic => topic.id === topicId)
 
-  // Separate posts by status
-  const unscheduledPosts = posts.filter(post => !post.scheduledAt || post.status === 'draft')
-  const scheduledPosts = posts.filter(post => post.scheduledAt && post.status === 'scheduled')
+  // Separate posts by scheduling status
+  const unscheduledPosts = posts.filter(post => !post.scheduledAt)
+  const scheduledPosts = posts.filter(post => post.scheduledAt)
 
   const toggleSection = (section: 'unscheduled' | 'scheduled') => {
     setCollapsedSections(prev => ({

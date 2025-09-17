@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/components/Auth/AuthProvider'
-import { Building2, LogOut, Settings, User, ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { Building2, LogOut, Settings, User, ChevronDown, Plus, Trash2, Sparkles } from 'lucide-react'
 import { AppOrganization } from '@/services/AuthService'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { SettingsModal } from './SettingsModal'
 import { PostSeedingButton } from '@/components/PostSeeding/PostSeedingButton'
+import { AIAssistantNew } from '@/components/AI/AIAssistantNew'
 
 interface HeaderProps {
   currentView: 'posts' | 'calendar' | 'categories' | 'media'
@@ -21,6 +22,9 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
   const [orgToDelete, setOrgToDelete] = useState<AppOrganization | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [isAIOpen, setIsAIOpen] = useState(false)
+  const openAssistant = () => setIsAIOpen(true)
+  const closeAssistant = () => setIsAIOpen(false)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -244,6 +248,18 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
       {/* Right side - User actions */}
       <div className="flex items-center gap-2">
         <PostSeedingButton />
+        
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={openAssistant}
+          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors relative"
+          title="AI Assistant"
+        >
+          <Sparkles className="w-5 h-5" />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full animate-pulse" />
+        </motion.button>
+        
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -290,6 +306,17 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
       <SettingsModal
         open={showSettings}
         onOpenChange={setShowSettings}
+      />
+
+      {/* AI Assistant */}
+      <AIAssistantNew
+        isOpen={isAIOpen}
+        onClose={closeAssistant}
+        onPostsCreated={(posts) => {
+          // Handle posts created by AI
+          console.log('AI created posts:', posts)
+          // You can add logic here to refresh the post list or show a notification
+        }}
       />
     </header>
   )

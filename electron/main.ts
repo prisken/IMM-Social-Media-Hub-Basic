@@ -8,9 +8,39 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as crypto from 'crypto'
+import { ElectronOllama } from 'electron-ollama'
 
 let mainWindow: BrowserWindow
 let globalDatabase: Database.Database | null = null
+let ollama: ElectronOllama | null = null
+
+// Initialize Ollama
+async function initializeOllama() {
+  try {
+    console.log('Initializing Ollama...')
+    ollama = new ElectronOllama({
+      basePath: app.getPath('userData'),
+    })
+    
+    // Check if Ollama is running
+    if (!(await ollama.isRunning())) {
+      console.log('Ollama not running, starting...')
+      const metadata = await ollama.getMetadata('latest')
+      console.log('Starting Ollama server with metadata:', metadata)
+      await ollama.serve(metadata.version)
+      console.log('Ollama server started successfully')
+    } else {
+      console.log('Ollama server is already running')
+    }
+    
+    console.log('Ollama initialized successfully')
+    return true
+  } catch (error) {
+    console.error('Failed to initialize Ollama:', error)
+    console.log('AI Assistant will fall back to external Ollama if available')
+    return false
+  }
+}
 
 // Initialize global database for users and organizations
 async function initializeGlobalDatabase() {
@@ -260,6 +290,14 @@ app.whenReady().then(async () => {
     // Initialize global database
     globalDatabase = await initializeGlobalDatabase()
     await createGlobalTables(globalDatabase)
+    
+    // Initialize Ollama (optional - app works without it)
+    const ollamaInitialized = await initializeOllama()
+    if (ollamaInitialized) {
+      console.log('AI Assistant ready')
+    } else {
+      console.log('AI Assistant not available - Ollama initialization failed')
+    }
     
     // Create window
     createWindow()
@@ -798,6 +836,76 @@ ipcMain.handle('fs-list-directory', async (_, path: string) => {
       '.ogg': 'video/ogg',
       '.mp3': 'audio/mpeg',
       '.wav': 'audio/wav'
-    }
-    return mimeTypes[ext] || 'application/octet-stream'
   }
+  return mimeTypes[ext] || 'application/octet-stream'
+}
+
+// Ollama IPC handlers
+ipcMain.handle('ollama-check-status', async () => {
+  if (!ollama) {
+    return { available: false, error: 'Ollama not initialized' }
+  }
+  
+  try {
+    const isRunning = await ollama.isRunning()
+    return { available: isRunning }
+  } catch (error) {
+    return { available: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('ollama-get-models', async () => {
+  if (!ollama) {
+    return { models: [], error: 'Ollama not initialized' }
+  }
+  
+  try {
+    // Use fetch to get models from Ollama API
+    const response = await fetch('http://localhost:11434/api/tags')
+    const data = await response.json()
+    return { models: data.models || [] }
+  } catch (error) {
+    return { models: [], error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('ollama-pull-model', async (_, modelName: string) => {
+  if (!ollama) {
+    return { success: false, error: 'Ollama not initialized' }
+  }
+  
+  try {
+    // Use fetch to pull model via Ollama API
+    const response = await fetch('http://localhost:11434/api/pull', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: modelName })
+    })
+    return { success: response.ok }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('ollama-generate', async (_, modelName: string, prompt: string) => {
+  if (!ollama) {
+    return { response: '', error: 'Ollama not initialized' }
+  }
+  
+  try {
+    // Use fetch to generate via Ollama API
+    const response = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: modelName,
+        prompt: prompt,
+        stream: false
+      })
+    })
+    const data = await response.json()
+    return { response: data.response || '' }
+  } catch (error) {
+    return { response: '', error: error instanceof Error ? error.message : String(error) }
+  }
+})

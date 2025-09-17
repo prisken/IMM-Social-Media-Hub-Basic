@@ -42,14 +42,14 @@ export class DataInitializationService {
         this.initializedOrganizations.add(organizationId)
         console.log(`DataInitializationService: Initialization completed successfully for organization ${organizationId}`)
         
-        // Create some demo posts if none exist
-        await this.createDemoPosts(organizationId)
+        // Demo posts creation disabled - users will start with empty post list
+        console.log('DataInitializationService: Demo posts creation disabled - starting with clean slate')
       } else {
         this.initializedOrganizations.add(organizationId)
         console.log(`DataInitializationService: Categories already exist, marking as initialized for organization ${organizationId}`)
         
-        // Check if we need to create demo posts
-        await this.createDemoPosts(organizationId)
+        // Demo posts creation disabled - users will start with empty post list
+        console.log('DataInitializationService: Demo posts creation disabled - starting with clean slate')
       }
     } catch (error) {
       console.error('Failed to initialize default data:', error)
