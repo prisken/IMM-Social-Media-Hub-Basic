@@ -9,6 +9,8 @@
     "dev:renderer": "vite",
     "dev:main": "tsc -p tsconfig.main.json && electron dist/main.js",
     "build": "npm run build:renderer && npm run build:main",
+    "icons": "electron-icon-builder --input=logo.jpg --output=build/icons --flatten",
+    "dist": "npm run build && npm run icons && electron-builder -mwl",
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
     "preview": "vite preview",
@@ -34,6 +36,8 @@
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-icon-builder": "^2.0.1",
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
@@ -60,5 +64,23 @@
     "sharp": "^0.33.1",
     "sqlite3": "^5.1.6",
     "tailwindcss": "^3.3.6"
+  },
+  "build": {
+    "appId": "com.socialmedia.management",
+    "productName": "Social Media Management",
+    "files": [
+      "dist/**/*",
+      "assets/**",
+      "production/**"
+    ],
+    "mac": {
+      "icon": "build/icons/icons/icon.icns"
+    },
+    "win": {
+      "icon": "build/icons/icons/icon.ico"
+    },
+    "linux": {
+      "icon": "build/icons"
+    }
   }
 }
